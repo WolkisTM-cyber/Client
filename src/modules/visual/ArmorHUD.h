@@ -70,7 +70,7 @@ public:
                                 jstring text = env->NewStringUTF(slotName);
                                 if (text && drawStr) {
                                     env->CallIntMethod(fr, drawStr, text, x,
-                                        horiz && horiz->bVal ? yBase + 12*i : yBase, 0xAAAAAA);
+                                        horiz && horiz->bVal ? yBase : yBase + (3 - i) * 12, 0xAAAAAA);
                                     if (env->ExceptionCheck()) env->ExceptionClear();
                                     env->DeleteLocalRef(text);
                                 }

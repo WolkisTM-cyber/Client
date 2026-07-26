@@ -45,6 +45,12 @@ public:
             int count = env->CallIntMethod(player, getItemInUseCount);
             if (env->ExceptionCheck()) env->ExceptionClear();
             if (count > 0) {
+                auto world = JNIHelper::GetWorld(env);
+                if (world) {
+                    if (target_) { env->DeleteGlobalRef(target_); target_ = nullptr; }
+                    target_ = FindBestTarget(env, player, world);
+                    env->DeleteLocalRef(world);
+                }
                 if (target_) {
                     float yaw = GetAngleTo(env, player, target_);
                     float pitch = GetPitchTo(env, player, target_);
