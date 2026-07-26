@@ -2,6 +2,7 @@
 #include "../modules/Module.h"
 #include "../modules/JNIHelper.h"
 #include <vector>
+#include <mutex>
 
 class ClickGUI : public Module {
 public:
@@ -14,23 +15,23 @@ public:
     void OnTick(JNIEnv* env) override;
 
     void Render(JNIEnv* env, jobject fontRenderer, jmethodID drawString);
-    bool IsOpen() const { return open_; }
+    bool IsOpen() const { return open_.load(); }
 
 private:
     struct Panel {
         Category category;
         int x, y, w, h;
-        bool expanded;
+        int listH;
     };
 
     void DrawPanel(JNIEnv* env, jobject fontRenderer, jmethodID drawString, Panel& panel);
     int GetCategoryColor(Category cat);
 
     std::vector<Panel> panels_;
-    bool open_ = false;
-    int mouseX_ = 0;
-    int mouseY_ = 0;
-    bool dragging_ = false;
-    int dragX_, dragY_;
-    Panel* dragPanel_ = nullptr;
+    std::atomic<bool> open_;
+    std::mutex panelMutex_;
+    int mouseX_, mouseY_;
+    bool dragging_;
+    Panel* dragPanel_;
+    int dragOffX_, dragOffY_;
 };

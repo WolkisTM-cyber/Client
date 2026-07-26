@@ -2,6 +2,8 @@
 #include <windows.h>
 #include <string>
 #include <vector>
+#include <atomic>
+#include <mutex>
 #include <jni.h>
 #include "Category.h"
 #include "Setting.h"
@@ -21,7 +23,7 @@ public:
     const std::string& GetName() const { return name_; }
     const std::string& GetDisplayName() const { return displayName_; }
     Category GetCategory() const { return category_; }
-    bool IsEnabled() const { return enabled_; }
+    bool IsEnabled() const { return enabled_.load(); }
     int GetKey() const { return key_; }
     void SetKey(int key) { key_ = key; }
 
@@ -30,11 +32,13 @@ public:
 
 protected:
     void AddSetting(const Setting& s) { settings_.push_back(s); }
+    bool ToggleNoJNI();
 
     std::string name_;
     std::string displayName_;
     Category category_;
-    bool enabled_;
+    std::atomic<bool> enabled_;
     int key_;
     std::vector<Setting> settings_;
+    std::recursive_mutex toggleMutex_;
 };

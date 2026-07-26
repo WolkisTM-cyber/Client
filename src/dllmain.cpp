@@ -28,7 +28,7 @@
 #include "modules/combat/Reach.h"
 #include "modules/combat/Criticals.h"
 #include "modules/combat/AutoBlock.h"
-#include "modules/combat/AntiKnockback.h"
+#include "modules/misc/AntiKnockback.h"
 #include "modules/combat/BedAura.h"
 
 // Visual

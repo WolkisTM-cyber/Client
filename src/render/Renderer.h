@@ -1,7 +1,8 @@
 #pragma once
 #include <windows.h>
+#include <vector>
+#include <mutex>
 #include <jni.h>
-#include "../modules/JNIHelper.h"
 
 class Renderer {
 public:
@@ -14,29 +15,21 @@ public:
 
     bool IsInitialized() const { return initialized_; }
 
-    void AddEntityLine(double x1, double y1, double z1,
-                       double x2, double y2, double z2,
-                       float r, float g, float b);
-    void AddEntityBox(double x, double y, double z,
-                      double w, double h,
-                      float r, float g, float b);
-
 private:
+    void Setup3DProjection();
+    void Setup2DProjection();
+    void RestoreProjection();
+
     void RenderESP(JNIEnv* env);
     void RenderTracers(JNIEnv* env);
     void RenderHUD(JNIEnv* env);
+    void RenderClickGUI(JNIEnv* env);
 
-    struct Line3D {
-        double x1, y1, z1, x2, y2, z2;
-        float r, g, b;
-    };
+    struct {
+        float proj[16];
+        float model[16];
+        int viewport[4];
+    } saved_;
 
-    struct Box3D {
-        double x, y, z, w, h;
-        float r, g, b;
-    };
-
-    std::vector<Line3D> lines_;
-    std::vector<Box3D> boxes_;
     bool initialized_;
 };

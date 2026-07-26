@@ -26,65 +26,83 @@ Write-Host "Building Client ($Configuration)..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $BuildDir | Out-Null
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 
+# Collect source files
 $Sources = Get-ChildItem -Path (Join-Path $ProjectRoot "src") -Recurse -Filter "*.cpp" | Select-Object -ExpandProperty FullName
-$SourcePathsStr = @()
-foreach ($s in $Sources) {
-    $SourcePathsStr += "`"$s`""
-}
-$SourcePathsArg = $SourcePathsStr -join " "
 
-$Flags = @(
-    "/nologo",
-    "/$Configuration",
-    "/std:c++17",
-    "/EHsc",
-    "/W4",
-    "/utf-8",
-    "/DUNICODE",
-    "/D_UNICODE",
-    "/I`"$JavaInclude`"",
-    "/I`"$JavaIncludeWin`"",
+# Build CL flags
+$ClArgs = @(
+    "cl.exe"
+    "/nologo"
+    "/$Configuration"
+    "/std:c++17"
+    "/EHsc"
+    "/W4"
+    "/utf-8"
+    "/DUNICODE"
+    "/D_UNICODE"
+    "/I`"$JavaInclude`""
+    "/I`"$JavaIncludeWin`""
     "/I`"$ProjectRoot\src`""
 )
 
-if ($Configuration -eq "Release") { $Flags += "/O2", "/MT" }
-else { $Flags += "/MTd" }
+if ($Configuration -eq "Release") { $ClArgs += "/O2", "/MT" }
+else { $ClArgs += "/MTd" }
 
-$OutputDll = Join-Path $OutputDir "Client.dll"
-$OutputLib = Join-Path $OutputDir "Client.lib"
+# Add sources
+$ClArgs += $Sources
 
-$LinkFlags = "/DLL /OUT:`"$OutputDll`" /IMPLIB:`"$OutputLib`" /SUBSYSTEM:WINDOWS user32.lib gdi32.lib comctl32.lib advapi32.lib opengl32.lib"
-
-$ClCmd = "cl $Flags $SourcePathsArg /link $LinkFlags"
+# Link flags
+$ClArgs += @(
+    "/link"
+    "/DLL"
+    "/OUT:`"$(Join-Path $OutputDir "Client.dll")`""
+    "/IMPLIB:`"$(Join-Path $OutputDir "Client.lib")`""
+    "/SUBSYSTEM:WINDOWS"
+    "user32.lib"
+    "gdi32.lib"
+    "comctl32.lib"
+    "advapi32.lib"
+    "opengl32.lib"
+)
 
 Write-Host "Compiling Client DLL..." -ForegroundColor Yellow
 Push-Location $ProjectRoot
-Invoke-Expression $ClCmd
+& $ClArgs[0] $ClArgs[1..$ClArgs.Count]
+$dllExit = $LASTEXITCODE
 Pop-Location
 
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "`nClient DLL: $OutputDll" -ForegroundColor Green
+if ($dllExit -eq 0) {
+    Write-Host "Client DLL: $(Join-Path $OutputDir "Client.dll")" -ForegroundColor Green
 } else {
-    Write-Host "`nClient DLL build failed (exit code: $LASTEXITCODE)" -ForegroundColor Red
+    Write-Host "Client DLL build failed (exit code: $dllExit)" -ForegroundColor Red
     exit 1
 }
 
 # Build Injector
 Write-Host "`nBuilding Injector..." -ForegroundColor Cyan
 
-$InjectorOut = Join-Path $OutputDir "Injector.exe"
-$InjectorCmd = "cl /nologo /$Configuration /std:c++17 /EHsc `"$ProjectRoot\injector\injector.cpp`" /link /OUT:`"$InjectorOut`" advapi32.lib"
+$InjectorArgs = @(
+    "cl.exe"
+    "/nologo"
+    "/$Configuration"
+    "/std:c++17"
+    "/EHsc"
+    "`"$(Join-Path $ProjectRoot "injector\injector.cpp")`""
+    "/link"
+    "/OUT:`"$(Join-Path $OutputDir "Injector.exe")`""
+    "advapi32.lib"
+)
 
 Push-Location $ProjectRoot
-Invoke-Expression $InjectorCmd
+& $InjectorArgs[0] $InjectorArgs[1..$InjectorArgs.Count]
+$injExit = $LASTEXITCODE
 Pop-Location
 
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "`nInjector: $InjectorOut" -ForegroundColor Green
+if ($injExit -eq 0) {
+    Write-Host "Injector: $(Join-Path $OutputDir "Injector.exe")" -ForegroundColor Green
 } else {
-    Write-Host "`nInjector build failed (exit code: $LASTEXITCODE)" -ForegroundColor Red
+    Write-Host "Injector build failed (exit code: $injExit)" -ForegroundColor Red
 }
 
 Write-Host "`n=== Build Complete ===" -ForegroundColor Cyan
-Write-Host "Outputs:"
 Get-ChildItem $OutputDir | ForEach-Object { Write-Host "  $($_.Name)" }
