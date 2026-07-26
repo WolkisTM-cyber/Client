@@ -6,12 +6,13 @@
 class Speed : public Module {
 public:
     Speed() : Module("Speed", "Speed", Category::Movement, 0) {
-        AddSetting(Setting::FloatSetting("Speed", "Speed", 0.32f, 0.1f, 1.0f));
-        AddSetting(Setting::ModeSetting("Mode", "Mode", {"YPort", "NCP", "BHop", "Strafe"}, 0));
-        AddSetting(Setting::BoolSetting("Jump", "Jump", true));
+        AddSetting(Setting::FloatSetting("Speed", "Speed", 0.287f, 0.2f, 0.6f));
+        AddSetting(Setting::ModeSetting("Mode", "Mode", {"HypixelBHop", "Vulcan", "NCP", "Strafe"}, 0));
+        AddSetting(Setting::BoolSetting("Jump", "Auto Jump", true));
     }
 
     void OnTick(JNIEnv* env) override {
+        if (!IsEnabled()) return;
         auto player = JNIHelper::GetPlayer(env);
         if (!player) return;
 
@@ -34,55 +35,42 @@ public:
 
         if (forward == 0 && strafe == 0) { env->DeleteLocalRef(player); return; }
 
-        if (forward != 0 && strafe != 0) speed *= 0.707;
+        if (forward != 0 && strafe != 0) speed *= 0.7071;
 
         double rad = yaw * 3.141592653589793 / 180.0;
-        double sine = -std::sin(rad);
-        double cose = std::cos(rad);
+        double mx = forward * -std::sin(rad) * speed + strafe * std::cos(rad) * speed;
+        double mz = forward * std::cos(rad) * speed - strafe * -std::sin(rad) * speed;
 
-        double mx = forward * sine * speed + strafe * cose * speed;
-        double mz = forward * cose * speed - strafe * sine * speed;
-
-        switch (modeSetting->modeVal) {
-        case 0: // YPort
+        int mode = modeSetting->modeVal;
+        if (mode == 0) { // HypixelBHop (Friction & jump boost)
             if (onGround && jumpSetting->bVal) {
                 env->SetDoubleField(player, c.motionY, 0.42);
-                env->SetDoubleField(player, c.motionX, mx * 1.5);
-                env->SetDoubleField(player, c.motionZ, mz * 1.5);
+                env->SetDoubleField(player, c.motionX, mx * 1.08);
+                env->SetDoubleField(player, c.motionZ, mz * 1.08);
             } else {
-                env->SetDoubleField(player, c.motionX, mx);
-                env->SetDoubleField(player, c.motionZ, mz);
+                double curMx = env->GetDoubleField(player, c.motionX) * 0.98;
+                double curMz = env->GetDoubleField(player, c.motionZ) * 0.98;
+                env->SetDoubleField(player, c.motionX, curMx);
+                env->SetDoubleField(player, c.motionZ, curMz);
             }
-            break;
-        case 1: // NCP
+        } else if (mode == 1) { // Vulcan (Strict friction simulation)
+            if (onGround && jumpSetting->bVal) {
+                env->SetDoubleField(player, c.motionY, 0.42);
+                env->SetDoubleField(player, c.motionX, mx * 1.02);
+                env->SetDoubleField(player, c.motionZ, mz * 1.02);
+            }
+        } else if (mode == 2) { // NCP
             if (onGround) {
                 if (jumpSetting->bVal) env->SetDoubleField(player, c.motionY, 0.4);
-                env->SetDoubleField(player, c.motionX, mx * 1.2);
-                env->SetDoubleField(player, c.motionZ, mz * 1.2);
+                env->SetDoubleField(player, c.motionX, mx * 1.15);
+                env->SetDoubleField(player, c.motionZ, mz * 1.15);
             }
-            break;
-        case 2: // BHop
-            if (onGround) {
-                if (jumpSetting->bVal) env->SetDoubleField(player, c.motionY, 0.42);
-                env->SetDoubleField(player, c.motionX, mx);
-                env->SetDoubleField(player, c.motionZ, mz);
-            } else {
-                double currentMx = env->GetDoubleField(player, c.motionX);
-                double currentMz = env->GetDoubleField(player, c.motionZ);
-                double currentSpd = std::sqrt(currentMx*currentMx + currentMz*currentMz);
-                if (currentSpd < speed) {
-                    double factor = speed / currentSpd;
-                    env->SetDoubleField(player, c.motionX, currentMx * factor);
-                    env->SetDoubleField(player, c.motionZ, currentMz * factor);
-                }
-            }
-            break;
-        case 3: // Strafe
+        } else if (mode == 3) { // Strafe
             env->SetDoubleField(player, c.motionX, mx);
             env->SetDoubleField(player, c.motionZ, mz);
-            break;
         }
 
         env->DeleteLocalRef(player);
     }
 };
+
