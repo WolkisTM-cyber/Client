@@ -1,0 +1,45 @@
+name: Build Client
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Setup JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '8'
+        distribution: 'temurin'
+
+    - name: Build DLL
+      run: |
+        cd $env:GITHUB_WORKSPACE
+        mkdir output -Force
+        $sources = Get-ChildItem -Path src -Recurse -Filter "*.cpp" | Select-Object -ExpandProperty FullName
+        $srcStr = $sources -join " "
+        cl /nologo /O2 /MT /std:c++17 /EHsc /utf-8 /DUNICODE /D_UNICODE `
+          /I"$env:JAVA_HOME\include" /I"$env:JAVA_HOME\include\win32" /Isrc `
+          $srcStr /link /DLL /OUT:output\Client.dll /IMPLIB:output\Client.lib `
+          /SUBSYSTEM:WINDOWS user32.lib gdi32.lib comctl32.lib advapi32.lib opengl32.lib
+
+    - name: Build Injector
+      run: |
+        cd $env:GITHUB_WORKSPACE\injector
+        cl /nologo /O2 /MT /std:c++17 /EHsc injector.cpp /link /OUT:..\output\Injector.exe advapi32.lib
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Client-Build
+        path: output/

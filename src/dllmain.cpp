@@ -4,6 +4,9 @@
 #include "GUI.h"
 #include "modules/ModuleManager.h"
 #include "modules/JNIHelper.h"
+#include "config/ConfigManager.h"
+#include "render/Renderer.h"
+#include "command/CommandManager.h"
 
 // Movement
 #include "modules/movement/AutoSprint.h"
@@ -25,6 +28,8 @@
 #include "modules/combat/Reach.h"
 #include "modules/combat/Criticals.h"
 #include "modules/combat/AutoBlock.h"
+#include "modules/combat/AntiKnockback.h"
+#include "modules/combat/BedAura.h"
 
 // Visual
 #include "modules/visual/FullBright.h"
@@ -35,6 +40,9 @@
 #include "modules/visual/ESP.h"
 #include "modules/visual/ChestESP.h"
 #include "modules/visual/Chams.h"
+#include "modules/visual/XRay.h"
+#include "modules/visual/NoCameraClip.h"
+#include "modules/visual/Ambiance.h"
 
 // Player
 #include "modules/player/NoFall.h"
@@ -43,6 +51,12 @@
 #include "modules/player/Scaffold.h"
 #include "modules/player/FastPlace.h"
 #include "modules/player/AutoTool.h"
+#include "modules/player/AutoArmor.h"
+#include "modules/player/ChestStealer.h"
+#include "modules/player/InvCleaner.h"
+
+// HUD
+#include "modules/misc/HUD.h"
 
 // Misc
 #include "modules/misc/Timer.h"
@@ -52,11 +66,20 @@
 #include "modules/misc/Derp.h"
 #include "modules/misc/AutoL.h"
 
-static ModuleManager* g_moduleManager = nullptr;
-static GUI* g_gui = nullptr;
-static JavaVM* g_vm = nullptr;
+// Gui
+#include "gui/ClickGUI.h"
+
+ModuleManager* g_moduleManager = nullptr;
+GUI* g_gui = nullptr;
+JavaVM* g_vm = nullptr;
 static HANDLE g_tickThread = nullptr;
 static std::atomic<bool> g_running(false);
+static CommandManager* g_commandManager = nullptr;
+static ClickGUI* g_clickGUI = nullptr;
+
+void SaveConfig() {
+    if (g_moduleManager) ConfigManager::Get().Save(g_moduleManager);
+}
 
 DWORD WINAPI TickThreadProc(LPVOID) {
     while (g_running.load()) {
@@ -65,6 +88,14 @@ DWORD WINAPI TickThreadProc(LPVOID) {
             jint getEnvErr = g_vm->GetEnv((void**)&env, JNI_VERSION_1_8);
             if (getEnvErr == JNI_OK && env) {
                 g_moduleManager->OnTick(env);
+
+                // Check keybinds
+                for (auto* mod : g_moduleManager->GetAll()) {
+                    int key = mod->GetKey();
+                    if (key && (GetAsyncKeyState(key) & 1)) {
+                        mod->Toggle(env);
+                    }
+                }
             }
         }
         Sleep(30);
@@ -73,7 +104,6 @@ DWORD WINAPI TickThreadProc(LPVOID) {
 }
 
 DWORD WINAPI InitThreadProc(LPVOID) {
-    // Delay to let JVM initialize
     Sleep(2000);
 
     typedef jint(JNICALL* JNI_GetCreatedJavaVMs_t)(JavaVM**, jsize, jsize*);
@@ -99,10 +129,14 @@ DWORD WINAPI InitThreadProc(LPVOID) {
         return 0;
     }
 
+    // Load config and init modules
+    ConfigManager::Get().Load(g_moduleManager);
     g_moduleManager->Init(env);
 
-    if (getEnvErr == JNI_EDETACHED) g_vm->DetachCurrentThread();
+    // Init renderer
+    Renderer::Get().Init();
 
+    if (getEnvErr == JNI_EDETACHED) g_vm->DetachCurrentThread();
     return 0;
 }
 
@@ -115,6 +149,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         if (g_gui) g_gui->Create(hModule);
 
         g_moduleManager = new ModuleManager();
+        g_commandManager = new CommandManager();
 
         // Combat
         g_moduleManager->AddModule<Velocity>();
@@ -123,6 +158,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<Reach>();
         g_moduleManager->AddModule<Criticals>();
         g_moduleManager->AddModule<AutoBlock>();
+        g_moduleManager->AddModule<AntiKnockback>();
+        g_moduleManager->AddModule<BedAura>();
 
         // Movement
         g_moduleManager->AddModule<AutoSprintMod>();
@@ -146,6 +183,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<ESP>();
         g_moduleManager->AddModule<ChestESP>();
         g_moduleManager->AddModule<Chams>();
+        g_moduleManager->AddModule<XRay>();
+        g_moduleManager->AddModule<NoCameraClip>();
+        g_moduleManager->AddModule<Ambiance>();
+
+        // HUD
+        g_moduleManager->AddModule<HUD>();
 
         // Player
         g_moduleManager->AddModule<NoFall>();
@@ -154,6 +197,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<Scaffold>();
         g_moduleManager->AddModule<FastPlace>();
         g_moduleManager->AddModule<AutoTool>();
+        g_moduleManager->AddModule<AutoArmor>();
+        g_moduleManager->AddModule<ChestStealer>();
+        g_moduleManager->AddModule<InvCleaner>();
 
         // Misc
         g_moduleManager->AddModule<Timer>();
@@ -163,23 +209,28 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<Derp>();
         g_moduleManager->AddModule<AutoL>();
 
-        // Start tick thread
+        // ClickGUI
+        g_clickGUI = g_moduleManager->AddModule<ClickGUI>();
+
         g_running.store(true);
         g_tickThread = CreateThread(nullptr, 0, TickThreadProc, nullptr, 0, nullptr);
 
-        // Init JVM in separate thread (safe: not inside DllMain)
         HANDLE initThread = CreateThread(nullptr, 0, InitThreadProc, nullptr, 0, nullptr);
         if (initThread) CloseHandle(initThread);
 
         break;
     }
     case DLL_PROCESS_DETACH: {
+        SaveConfig();
+
         g_running.store(false);
         if (g_tickThread) {
             WaitForSingleObject(g_tickThread, 1500);
             CloseHandle(g_tickThread);
             g_tickThread = nullptr;
         }
+
+        Renderer::Get().Shutdown();
 
         if (g_vm) {
             JNIEnv* env = nullptr;
@@ -188,6 +239,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
             }
         }
 
+        delete g_commandManager;
+        g_commandManager = nullptr;
         delete g_moduleManager;
         g_moduleManager = nullptr;
 

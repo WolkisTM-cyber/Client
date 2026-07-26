@@ -53,24 +53,38 @@ else { $Flags += "/MTd" }
 $OutputDll = Join-Path $OutputDir "Client.dll"
 $OutputLib = Join-Path $OutputDir "Client.lib"
 
-$LinkFlags = "/DLL /OUT:`"$OutputDll`" /IMPLIB:`"$OutputLib`" /SUBSYSTEM:WINDOWS user32.lib gdi32.lib comctl32.lib advapi32.lib"
+$LinkFlags = "/DLL /OUT:`"$OutputDll`" /IMPLIB:`"$OutputLib`" /SUBSYSTEM:WINDOWS user32.lib gdi32.lib comctl32.lib advapi32.lib opengl32.lib"
 
 $ClCmd = "cl $Flags $SourcePathsArg /link $LinkFlags"
 
-Write-Host "Compiling..." -ForegroundColor Yellow
+Write-Host "Compiling Client DLL..." -ForegroundColor Yellow
 Push-Location $ProjectRoot
 Invoke-Expression $ClCmd
 Pop-Location
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "`nBuild successful!" -ForegroundColor Green
-    Write-Host "DLL: $OutputDll"
-
-    $Desktop = [Environment]::GetFolderPath("Desktop")
-    $Target = Join-Path $Desktop "Client.dll"
-    Copy-Item -Path $OutputDll -Destination $Target -Force
-    Write-Host "Copied to: $Target" -ForegroundColor Green
+    Write-Host "`nClient DLL: $OutputDll" -ForegroundColor Green
 } else {
-    Write-Host "`nBuild failed (exit code: $LASTEXITCODE)" -ForegroundColor Red
+    Write-Host "`nClient DLL build failed (exit code: $LASTEXITCODE)" -ForegroundColor Red
     exit 1
 }
+
+# Build Injector
+Write-Host "`nBuilding Injector..." -ForegroundColor Cyan
+
+$InjectorOut = Join-Path $OutputDir "Injector.exe"
+$InjectorCmd = "cl /nologo /$Configuration /std:c++17 /EHsc `"$ProjectRoot\injector\injector.cpp`" /link /OUT:`"$InjectorOut`" advapi32.lib"
+
+Push-Location $ProjectRoot
+Invoke-Expression $InjectorCmd
+Pop-Location
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "`nInjector: $InjectorOut" -ForegroundColor Green
+} else {
+    Write-Host "`nInjector build failed (exit code: $LASTEXITCODE)" -ForegroundColor Red
+}
+
+Write-Host "`n=== Build Complete ===" -ForegroundColor Cyan
+Write-Host "Outputs:"
+Get-ChildItem $OutputDir | ForEach-Object { Write-Host "  $($_.Name)" }
