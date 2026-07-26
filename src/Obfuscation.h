@@ -3,29 +3,20 @@
 #include <array>
 #include <jni.h>
 
-// Compile-time XOR string obfuscation to prevent memory string scanning
-template <size_t N, char K = 0x5A>
+// Compile-time XOR string obfuscation with dynamic key seed and thread_local evaluation
+template <size_t N, char Key1 = 0x5A, char Key2 = 0x3F>
 class XorString {
 public:
     constexpr XorString(const char* str) {
         for (size_t i = 0; i < N; ++i) {
-            data_[i] = str[i] ^ K;
+            data_[i] = str[i] ^ (Key1 + (i % 7) ^ Key2);
         }
     }
 
-    std::string decrypt() const {
-        std::string result;
-        result.reserve(N);
-        for (size_t i = 0; i < N; ++i) {
-            result.push_back(data_[i] ^ K);
-        }
-        return result;
-    }
-
-    const char* c_str() const {
+    const char* decrypt() const {
         static thread_local char buffer[N + 1];
         for (size_t i = 0; i < N; ++i) {
-            buffer[i] = data_[i] ^ K;
+            buffer[i] = data_[i] ^ (Key1 + (i % 7) ^ Key2);
         }
         buffer[N] = '\0';
         return buffer;
@@ -35,7 +26,10 @@ private:
     std::array<char, N> data_{};
 };
 
-#define XOR_STR(str) (XorString<sizeof(str) - 1>(str).c_str())
+#define XOR_STR(str) ([]() { \
+    constexpr auto obfuscator = XorString<sizeof(str) - 1, (char)(__COUNTER__ * 0x13 + 0x5A), (char)(__LINE__ * 0x3F)>(str); \
+    return obfuscator.decrypt(); \
+}())
 
 class SafeJNI {
 public:
@@ -52,3 +46,4 @@ public:
         return clazz;
     }
 };
+
