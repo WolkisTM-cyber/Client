@@ -116,6 +116,83 @@ bool ConfigManager::Save(ModuleManager* mgr) {
         }
         file << std::endl;
     }
-
     return true;
 }
+
+bool ConfigManager::ExportToClipboard(ModuleManager* mgr) {
+    if (!mgr) return false;
+    std::ostringstream ss;
+    for (auto* mod : mgr->GetAll()) {
+        ss << "[" << mod->GetName() << "]\n";
+        ss << "enabled=" << (mod->IsEnabled() ? "true" : "false") << "\n";
+        ss << "key=" << mod->GetKey() << "\n";
+        for (auto& s : mod->GetSettings()) {
+            switch (s.type) {
+            case Setting::Bool: ss << s.name << "=" << (s.bVal ? "true" : "false") << "\n"; break;
+            case Setting::Int: ss << s.name << "=" << s.iVal << "\n"; break;
+            case Setting::Float: ss << s.name << "=" << s.fVal << "\n"; break;
+            case Setting::Mode: ss << s.name << "=" << s.modeVal << "\n"; break;
+            }
+        }
+        ss << "\n";
+    }
+    std::string str = ss.str();
+    if (OpenClipboard(nullptr)) {
+        EmptyClipboard();
+        HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, str.size() + 1);
+        if (hMem) {
+            memcpy(GlobalLock(hMem), str.c_str(), str.size() + 1);
+            GlobalUnlock(hMem);
+            SetClipboardData(CF_TEXT, hMem);
+        }
+        CloseClipboard();
+        return true;
+    }
+    return false;
+}
+
+bool ConfigManager::ImportFromClipboard(ModuleManager* mgr) {
+    if (!mgr) return false;
+    if (!OpenClipboard(nullptr)) return false;
+    HANDLE hData = GetClipboardData(CF_TEXT);
+    if (!hData) { CloseClipboard(); return false; }
+    char* pszText = static_cast<char*>(GlobalLock(hData));
+    if (!pszText) { CloseClipboard(); return false; }
+    std::string content(pszText);
+    GlobalUnlock(hData);
+    CloseClipboard();
+
+    std::istringstream iss(content);
+    std::string line;
+    std::string currentModule;
+    while (std::getline(iss, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        if (line[0] == '[') {
+            currentModule = line.substr(1, line.find(']') - 1);
+            continue;
+        }
+        auto eq = line.find('=');
+        if (eq == std::string::npos) continue;
+        std::string key = line.substr(0, eq);
+        std::string val = line.substr(eq + 1);
+        auto* mod = mgr->Find(currentModule);
+        if (!mod) continue;
+        auto* setting = mod->GetSetting(key);
+        if (setting) {
+            switch (setting->type) {
+            case Setting::Bool: setting->bVal = val == "true"; break;
+            case Setting::Int: setting->iVal = std::stoi(val); break;
+            case Setting::Float: setting->fVal = std::stof(val); break;
+            case Setting::Mode: setting->modeVal = std::stoi(val); break;
+            }
+        }
+        if (key == "enabled" && val == "true" && !mod->IsEnabled()) {
+            mod->Toggle(nullptr);
+        }
+        if (key == "key") {
+            mod->SetKey(std::stoi(val));
+        }
+    }
+    return true;
+}
+

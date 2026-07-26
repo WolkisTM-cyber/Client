@@ -63,6 +63,7 @@ $ClArgs += @(
     "comctl32.lib"
     "advapi32.lib"
     "opengl32.lib"
+    "glu32.lib"
 )
 
 Write-Host "Compiling Client DLL..." -ForegroundColor Yellow

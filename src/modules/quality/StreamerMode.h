@@ -1,6 +1,11 @@
 #pragma once
 #include "../Module.h"
 #include "../JNIHelper.h"
+#include <windows.h>
+
+#ifndef WDA_EXCLUDEFROMCAPTURE
+#define WDA_EXCLUDEFROMCAPTURE 0x00000011
+#endif
 
 class StreamerMode : public Module {
 public:
@@ -8,6 +13,25 @@ public:
         AddSetting(Setting::BoolSetting("HideIP", "Hide IP", true));
         AddSetting(Setting::BoolSetting("HideName", "Hide Username", true));
         AddSetting(Setting::BoolSetting("HideCoords", "Hide Coords", false));
+        AddSetting(Setting::BoolSetting("HideOBS", "Hide From OBS", true));
+    }
+
+    void OnEnable(JNIEnv* env) override {
+        if (GetSetting("HideOBS")->bVal) {
+            HWND hwnd = GetActiveWindow();
+            if (!hwnd) hwnd = FindWindowA("LWJGL", nullptr);
+            if (hwnd) {
+                SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE);
+            }
+        }
+    }
+
+    void OnDisable(JNIEnv* env) override {
+        HWND hwnd = GetActiveWindow();
+        if (!hwnd) hwnd = FindWindowA("LWJGL", nullptr);
+        if (hwnd) {
+            SetWindowDisplayAffinity(hwnd, 0x00000000);
+        }
     }
 
     void OnTick(JNIEnv* env) override {
@@ -38,3 +62,4 @@ public:
     bool ShouldHideCoord() { return IsEnabled() && GetSetting("HideCoords")->bVal; }
     bool ShouldHideIP() { return IsEnabled() && GetSetting("HideIP")->bVal; }
 };
+

@@ -32,6 +32,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     comctl32
     advapi32
     opengl32
+    glu32
 )
 
 if(MSVC)

@@ -161,6 +161,7 @@
 #include "modules/quality/Profiles.h"
 #include "modules/quality/DiscordRPC.h"
 #include "modules/quality/StreamerMode.h"
+#include "modules/quality/AltManager.h"
 
 // System
 #include "LogSystem.h"
@@ -174,6 +175,7 @@
 #include "modules/misc/Spammer.h"
 #include "modules/misc/Derp.h"
 #include "modules/misc/AutoL.h"
+#include "modules/misc/SelfDestruct.h"
 
 // Gui
 #include "gui/ClickGUI.h"
@@ -410,6 +412,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<AutoTip>();
         g_moduleManager->AddModule<BanNotifier>();
         g_moduleManager->AddModule<ServerInfo>();
+        g_moduleManager->AddModule<SelfDestruct>();
 
         // Exploit
         g_moduleManager->AddModule<Disabler>();
@@ -437,6 +440,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<Profiles>();
         g_moduleManager->AddModule<DiscordRPC>();
         g_moduleManager->AddModule<StreamerMode>();
+        g_moduleManager->AddModule<AltManager>();
 
         // ClickGUI
         g_clickGUI = g_moduleManager->AddModule<ClickGUI>();

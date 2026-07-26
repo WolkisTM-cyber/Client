@@ -11,6 +11,9 @@ public:
     bool Load(ModuleManager* mgr);
     bool Save(ModuleManager* mgr);
 
+    bool ExportToClipboard(ModuleManager* mgr);
+    bool ImportFromClipboard(ModuleManager* mgr);
+
     void SetPath(const std::string& path);
 
 private:
