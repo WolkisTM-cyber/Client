@@ -58,6 +58,14 @@
 // HUD
 #include "modules/misc/HUD.h"
 
+// AntiCheat
+#include "modules/anticheat/HypixelNPC.h"
+#include "modules/anticheat/AntiDesync.h"
+#include "modules/anticheat/AntiFlag.h"
+#include "modules/anticheat/StaffDetect.h"
+#include "modules/anticheat/AutoGG.h"
+#include "modules/anticheat/NoPitchLimit.h"
+
 // Misc
 #include "modules/misc/Timer.h"
 #include "modules/misc/AntiBot.h"
@@ -200,6 +208,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<AutoArmor>();
         g_moduleManager->AddModule<ChestStealer>();
         g_moduleManager->AddModule<InvCleaner>();
+
+        // AntiCheat
+        g_moduleManager->AddModule<HypixelNPC>();
+        g_moduleManager->AddModule<AntiDesync>();
+        g_moduleManager->AddModule<AntiFlag>();
+        g_moduleManager->AddModule<StaffDetect>();
+        g_moduleManager->AddModule<AutoGG>();
+        g_moduleManager->AddModule<NoPitchLimit>();
 
         // Misc
         g_moduleManager->AddModule<Timer>();
