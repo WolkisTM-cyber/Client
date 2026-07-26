@@ -41,9 +41,9 @@ private:
     JNIEnv* env_;
 };
 
-class PacketEvent : public Event {
+class PacketBusEvent : public Event {
 public:
-    PacketEvent(JNIEnv* env, jobject packet, bool outgoing)
+    PacketBusEvent(JNIEnv* env, jobject packet, bool outgoing)
         : Event(outgoing ? EventType::PACKET_SEND : EventType::PACKET_RECEIVE),
           env_(env), packet_(packet) {}
     JNIEnv* GetEnv() { return env_; }

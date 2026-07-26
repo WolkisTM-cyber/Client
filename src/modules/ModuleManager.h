@@ -34,3 +34,5 @@ private:
     std::vector<Module*> allCache_;
     mutable std::mutex moduleMutex_;
 };
+
+extern ModuleManager* g_moduleManager;

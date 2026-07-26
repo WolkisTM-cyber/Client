@@ -1,5 +1,6 @@
 #include "GUI.h"
 #include <utility>
+#include <algorithm>
 
 GUI::GUI()
     : module_(nullptr)
@@ -150,7 +151,7 @@ void GUI::Run() {
     HDC screenDC = GetDC(nullptr);
     int dpiX = GetDeviceCaps(screenDC, LOGPIXELSX);
     ReleaseDC(nullptr, screenDC);
-    float scale = max(1.0f, dpiX / 96.0f);
+    float scale = (std::max)(1.0f, (float)dpiX / 96.0f);
     int winW = static_cast<int>(width_ * scale);
     int winH = static_cast<int>(height_ * scale);
 

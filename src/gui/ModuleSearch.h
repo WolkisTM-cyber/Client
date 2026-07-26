@@ -107,7 +107,7 @@ public:
                     std::string name = mod->GetName();
                     std::transform(name.begin(), name.end(), name.begin(), ::tolower);
                     if (name.find(q) != std::string::npos) {
-                        mod->Toggle();
+                        mod->Toggle(nullptr);
                         break;
                     }
                 }

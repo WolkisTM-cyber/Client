@@ -42,7 +42,6 @@
 #include "modules/visual/Chams.h"
 #include "modules/visual/XRay.h"
 #include "modules/visual/NoCameraClip.h"
-#include "modules/visual/Ambiance.h"
 
 // Player
 #include "modules/player/NoFall.h"
@@ -98,6 +97,7 @@
 #include "modules/visual/Scoreboard.h"
 #include "modules/visual/BossBar.h"
 #include "modules/visual/Capes.h"
+#include "modules/visual/Trail.h"
 #include "modules/visual/TargetESP.h"
 #include "modules/visual/HitColor.h"
 #include "modules/visual/ItemPhysics3D.h"
@@ -195,7 +195,7 @@ JavaVM* g_vm = nullptr;
 static HANDLE g_tickThread = nullptr;
 static std::atomic<bool> g_running(false);
 static CommandManager* g_commandManager = nullptr;
-static ClickGUI* g_clickGUI = nullptr;
+ClickGUI* g_clickGUI = nullptr;
 TabGUI* g_tabGUI = nullptr;
 ModuleSearch* g_moduleSearch = nullptr;
 
@@ -352,7 +352,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<Chams>();
         g_moduleManager->AddModule<XRay>();
         g_moduleManager->AddModule<NoCameraClip>();
-        g_moduleManager->AddModule<Ambiance>();
         g_moduleManager->AddModule<ItemESP>();
         g_moduleManager->AddModule<NameTags>();
         g_moduleManager->AddModule<FreeCam>();
@@ -364,8 +363,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<BreakProgress>();
         g_moduleManager->AddModule<Scoreboard>();
         g_moduleManager->AddModule<BossBar>();
-        g_moduleManager->AddModule<PotionEffects>();
-        g_moduleManager->AddModule<TimeChanger>();
         g_moduleManager->AddModule<Trail>();
         g_moduleManager->AddModule<Capes>();
         g_moduleManager->AddModule<TargetESP>();

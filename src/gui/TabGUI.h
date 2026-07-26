@@ -145,7 +145,7 @@ public:
                 }
             }
             if (subSel_ >= 0 && subSel_ < (int)catMods.size()) {
-                catMods[subSel_]->Toggle();
+                catMods[subSel_]->Toggle(nullptr);
             }
         }
     }

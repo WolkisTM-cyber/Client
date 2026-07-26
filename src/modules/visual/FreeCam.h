@@ -110,7 +110,7 @@ public:
         env->DeleteLocalRef(player);
     }
 
-    void OnUpdate(JNIEnv* env) override {
+    void OnUpdate(JNIEnv* env) {
         // Block movement input
         auto player = JNIHelper::GetPlayer(env);
         if (!player) return;

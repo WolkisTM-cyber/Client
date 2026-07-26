@@ -21,7 +21,9 @@ public:
         if (!mc) { env->DeleteLocalRef(player); return; }
 
         auto& c = JNIHelper::Get();
-        jobject obj = env->CallObjectMethod(mc, c.objectMouseOver);
+        jfieldID objectMouseOverField = env->GetFieldID(c.minecraft, "objectMouseOver", "Lnet/minecraft/util/MovingObjectPosition;");
+        if (!objectMouseOverField) { env->DeleteLocalRef(mc); env->DeleteLocalRef(player); return; }
+        jobject obj = env->GetObjectField(mc, objectMouseOverField);
         if (!obj || env->ExceptionCheck()) { env->ExceptionClear(); env->DeleteLocalRef(mc); env->DeleteLocalRef(player); return; }
 
         jclass movingObjectClass = env->FindClass("net/minecraft/util/MovingObjectPosition");

@@ -97,7 +97,7 @@ public:
         jmethodID listSize = nullptr;
         jmethodID listGet = nullptr;
         jmethodID getLoadedEntityList = nullptr;
-        jmethodID getPlayerEntitiesF = nullptr;
+        jfieldID getPlayerEntitiesF = nullptr;
         jmethodID onUpdate = nullptr;
 
         // Timer fields

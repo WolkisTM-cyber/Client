@@ -17,7 +17,9 @@ public:
         if (!mc) return;
 
         auto& c = JNIHelper::Get();
-        jobject obj = env->CallObjectMethod(mc, c.objectMouseOver);
+        jfieldID objectMouseOverField = env->GetFieldID(c.minecraft, "objectMouseOver", "Lnet/minecraft/util/MovingObjectPosition;");
+        if (!objectMouseOverField) { env->DeleteLocalRef(mc); return; }
+        jobject obj = env->GetObjectField(mc, objectMouseOverField);
         if (!obj || env->ExceptionCheck()) { env->ExceptionClear(); env->DeleteLocalRef(mc); return; }
 
         jclass mopClass = env->GetObjectClass(obj);

@@ -19,7 +19,8 @@ public:
         int mode = GetSetting("Mode")->modeVal;
 
         if (mode == 0) { // NCPPacket (100% Vulcan & Watchdog Bypass)
-            bool isCollidedHoriz = env->GetBooleanField(player, c.isCollidedHorizontally);
+            jfieldID horizField = env->GetFieldID(c.entity, "isCollidedHorizontally", "Z");
+            bool isCollidedHoriz = horizField ? env->GetBooleanField(player, horizField) : false;
             bool onGround = env->GetBooleanField(player, c.onGround);
             if (isCollidedHoriz && onGround) {
                 double px = env->GetDoubleField(player, c.posX);

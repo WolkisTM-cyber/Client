@@ -1,6 +1,7 @@
 #pragma once
 #include "../Module.h"
 #include "../JNIHelper.h"
+#include "../ModuleManager.h"
 
 class AntiFlag : public Module {
 public:

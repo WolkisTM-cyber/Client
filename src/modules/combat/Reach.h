@@ -10,7 +10,7 @@ public:
         AddSetting(Setting::BoolSetting("Randomize", "Randomize", true));
     }
 
-    double GetReach() const {
+    double GetReach() {
         if (!IsEnabled()) return 3.0;
         float base = GetSetting("Range")->fVal;
         if (GetSetting("Randomize")->bVal) {

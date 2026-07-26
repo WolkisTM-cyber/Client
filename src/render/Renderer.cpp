@@ -70,7 +70,7 @@ bool Renderer::Init() {
     HMODULE glModule = GetModuleHandleW(L"opengl32.dll");
     if (!glModule) return false;
 
-    void* target = GetProcAddress(glModule, "wglSwapBuffers");
+    void* target = (void*)GetProcAddress(glModule, "wglSwapBuffers");
     if (!target) return false;
 
     g_original = (wglSwapBuffers_t)target;
@@ -108,7 +108,7 @@ void Renderer::Shutdown() {
     HMODULE glModule = GetModuleHandleW(L"opengl32.dll");
     if (!glModule) return;
 
-    void* target = GetProcAddress(glModule, "wglSwapBuffers");
+    void* target = (void*)GetProcAddress(glModule, "wglSwapBuffers");
     if (!target) return;
 
     DWORD old;
@@ -126,7 +126,10 @@ void Renderer::Setup3DProjection() {
     glMatrixMode(GL_PROJECTION);
     glPushMatrix();
     glLoadIdentity();
-    gluPerspective(70.0, (double)saved_.viewport[2] / saved_.viewport[3], 0.1, 256.0);
+    double aspect = (double)saved_.viewport[2] / (saved_.viewport[3] > 0 ? saved_.viewport[3] : 1);
+    double fH = tan(70.0 / 360.0 * 3.14159265) * 0.1;
+    double fW = fH * aspect;
+    glFrustum(-fW, fW, -fH, fH, 0.1, 256.0);
 
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
