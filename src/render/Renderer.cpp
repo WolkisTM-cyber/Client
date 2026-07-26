@@ -14,6 +14,8 @@
 #include "../modules/visual/Trail.h"
 #include "../modules/visual/PotionEffects.h"
 #include "../modules/visual/Capes.h"
+#include "../modules/visual/TargetESP.h"
+#include "../modules/visual/SessionInfo.h"
 #include "ShaderEngine.h"
 #include "../modules/world/PlayerRadar.h"
 #include "../modules/world/Waypoints.h"
@@ -422,6 +424,13 @@ void Renderer::Render3D(JNIEnv* env) {
     auto* capes = g_moduleManager->Find("Capes");
     if (capes && capes->IsEnabled()) {
         ((Capes*)capes)->Render3D(env);
+    }
+
+    // TargetESP
+    auto* tesp = g_moduleManager->Find("TargetESP");
+    auto* thud = g_moduleManager->Find("TargetHUD");
+    if (tesp && tesp->IsEnabled() && thud) {
+        // TargetESP Render
     }
 }
 

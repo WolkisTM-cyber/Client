@@ -97,10 +97,15 @@
 #include "modules/visual/BreakProgress.h"
 #include "modules/visual/Scoreboard.h"
 #include "modules/visual/BossBar.h"
-#include "modules/visual/PotionEffects.h"
-#include "modules/visual/TimeChanger.h"
-#include "modules/visual/Trail.h"
 #include "modules/visual/Capes.h"
+#include "modules/visual/TargetESP.h"
+#include "modules/visual/HitColor.h"
+#include "modules/visual/ItemPhysics3D.h"
+#include "modules/visual/CustomSky.h"
+#include "modules/visual/SessionInfo.h"
+#include "modules/visual/InventoryHUD.h"
+#include "modules/visual/SmoothCam.h"
+#include "modules/combat/AutoGapple.h"
 
 // Misc additions
 #include "modules/misc/Notifications.h"
@@ -363,6 +368,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<TimeChanger>();
         g_moduleManager->AddModule<Trail>();
         g_moduleManager->AddModule<Capes>();
+        g_moduleManager->AddModule<TargetESP>();
+        g_moduleManager->AddModule<HitColor>();
+        g_moduleManager->AddModule<ItemPhysics3D>();
+        g_moduleManager->AddModule<CustomSky>();
+        g_moduleManager->AddModule<SessionInfo>();
+        g_moduleManager->AddModule<InventoryHUD>();
+        g_moduleManager->AddModule<SmoothCam>();
+        g_moduleManager->AddModule<AutoGapple>();
 
         // HUD
         g_moduleManager->AddModule<HUD>();
