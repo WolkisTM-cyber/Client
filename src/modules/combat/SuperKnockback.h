@@ -1,31 +1,23 @@
 #pragma once
 #include "../Module.h"
 #include "../JNIHelper.h"
+#include "../packet/PacketUtil.h"
 
 class SuperKnockback : public Module {
 public:
     SuperKnockback() : Module("SuperKnockback", "Super Knockback", Category::Combat, 0) {
-        AddSetting(Setting::FloatSetting("MotionX", "Motion X", 3.0f, 1.0f, 10.0f));
-        AddSetting(Setting::FloatSetting("MotionY", "Motion Y", 0.5f, 0.1f, 3.0f));
+        AddSetting(Setting::ModeSetting("Mode", "Mode", {"Packet", "WTap"}, 0));
     }
 
-    void OnTick(JNIEnv* env) override {
-        if (!IsEnabled()) return;
-        auto player = JNIHelper::GetPlayer(env);
-        if (!player) return;
-
+    void DoExtraKnockback(JNIEnv* env, jobject player) {
+        if (!IsEnabled() || !env || !player) return;
         auto& c = JNIHelper::Get();
-        int hitTime = env->GetIntField(player, c.hurtTime);
-        if (hitTime > 0 && hitTime < 3) {
-            float mx = GetSetting("MotionX")->fVal;
-            float my = GetSetting("MotionY")->fVal;
-            double motionX = env->GetDoubleField(player, c.motionX);
-            double motionZ = env->GetDoubleField(player, c.motionZ);
-            env->SetDoubleField(player, c.motionX, motionX * mx);
-            env->SetDoubleField(player, c.motionZ, motionZ * mx);
-            env->SetDoubleField(player, c.motionY, my);
-        }
 
-        env->DeleteLocalRef(player);
+        // Send C0B stop & start sprint packet to trigger extra vanilla knockback vector
+        jobject stopSprint = PacketUtil::PacketPlayer(env, false);
+        jobject startSprint = PacketUtil::PacketPlayer(env, true);
+        if (stopSprint) { PacketUtil::SendPacket(env, stopSprint); env->DeleteLocalRef(stopSprint); }
+        if (startSprint) { PacketUtil::SendPacket(env, startSprint); env->DeleteLocalRef(startSprint); }
     }
 };
+
