@@ -1,5 +1,6 @@
 #pragma once
 #include <windows.h>
+#include <atomic>
 
 class GUI {
 public:
@@ -28,7 +29,7 @@ private:
     HANDLE thread_;
     bool visible_;
     int sprintMode_;
-    volatile bool threadRunning_;
+    std::atomic<bool> threadRunning_;
     int width_;
     int height_;
 

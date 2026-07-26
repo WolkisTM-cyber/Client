@@ -20,13 +20,13 @@ GUI::~GUI() {
 
 bool GUI::Create(HMODULE module) {
     module_ = module;
-    threadRunning_ = true;
+    threadRunning_.store(true);
     thread_ = CreateThread(nullptr, 0, ThreadProc, this, 0, nullptr);
     return thread_ != nullptr;
 }
 
 void GUI::Destroy() {
-    threadRunning_ = false;
+    threadRunning_.store(false);
     if (thread_) {
         if (hwnd_) {
             PostMessageW(hwnd_, WM_CLOSE, 0, 0);
@@ -156,14 +156,14 @@ void GUI::Run() {
 
     hwnd_ = CreateWindowExW(
         WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
-        CLASS_NAME, L"AutoSprint",
+        CLASS_NAME, L"Client",
         WS_POPUP,
         0, 0, winW, winH,
         nullptr, nullptr, module_, this
     );
 
     if (!hwnd_) {
-        threadRunning_ = false;
+        threadRunning_.store(false);
         return;
     }
 
@@ -176,7 +176,7 @@ void GUI::Run() {
     ShowWindow(hwnd_, SW_SHOW);
 
     MSG msg;
-    while (threadRunning_ && GetMessageW(&msg, nullptr, 0, 0)) {
+    while (threadRunning_.load() && GetMessageW(&msg, nullptr, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
@@ -257,7 +257,7 @@ void GUI::Render() {
 
         SetTextColor(memDC, RGB(120, 120, 140));
         RECT labelRect = { textX + modeW, 0, w - toggleRightMargin, h };
-        DrawTextW(memDC, L"Auto Sprint", -1, &labelRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOCLIP);
+        DrawTextW(memDC, L"Client", -1, &labelRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOCLIP);
     } else {
         SetTextColor(memDC, RGB(160, 160, 175));
         RECT labelRect = { textX, 0, w - toggleRightMargin, h };
@@ -288,6 +288,7 @@ void GUI::Render() {
 
     SelectObject(memDC, oldPen);
     DeleteObject(innerPen);
+    DeleteObject(borderPen);
     DeleteObject(font);
 
     BitBlt(hdc, 0, 0, w, h, memDC, 0, 0, SRCCOPY);
