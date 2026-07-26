@@ -224,6 +224,11 @@ DWORD WINAPI TickThreadProc(LPVOID) {
                     g_tabGUI->Toggle();
                 }
 
+                // ClickGUI key (Right Shift or Insert)
+                if (g_clickGUI && (GetAsyncKeyState(VK_INSERT) & 1)) {
+                    g_clickGUI->Toggle(env);
+                }
+
                 // ModuleSearch key (F6)
                 if (g_moduleSearch && (GetAsyncKeyState(VK_F6) & 1)) {
                     g_moduleSearch->Toggle();
@@ -282,6 +287,8 @@ DWORD WINAPI InitThreadProc(LPVOID) {
 
     // Init renderer
     Renderer::Get().Init();
+
+    MessageBeep(MB_OK); // Audible beep signal when Client is fully initialized
 
     if (getEnvErr == JNI_EDETACHED) g_vm->DetachCurrentThread();
     return 0;
