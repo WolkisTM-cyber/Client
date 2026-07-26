@@ -11,12 +11,17 @@
 #include "../modules/visual/Crosshair.h"
 #include "../modules/visual/BlockOutline.h"
 #include "../modules/visual/BreakProgress.h"
+#include "../modules/visual/Trail.h"
+#include "../modules/visual/PotionEffects.h"
 #include "../modules/world/PlayerRadar.h"
 #include "../modules/world/Waypoints.h"
 #include "../modules/world/ChunkBorders.h"
+#include "../modules/world/NewChunks.h"
+#include "../modules/world/CaveFinder.h"
 #include "../modules/misc/Notifications.h"
 #include "../modules/misc/CPSCounter.h"
 #include "../modules/misc/Keystrokes.h"
+#include "../modules/misc/ServerInfo.h"
 #include "../modules/visual/MotionBlur.h"
 #include "../modules/quality/HUDEditor.h"
 #include <cmath>
@@ -122,9 +127,6 @@ void Renderer::Setup3DProjection() {
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glLoadIdentity();
-
-    // Get player rotation for camera
-    // Simplified: just use identity, ESP/Tracers will use world coords
 }
 
 void Renderer::Setup2DProjection() {
@@ -346,6 +348,15 @@ void Renderer::RenderClickGUI(JNIEnv* env) {
         "(Ljava/lang/String;III)I");
     if (!drawString || env->ExceptionCheck()) {
         env->ExceptionClear();
+        env->DeleteLocalRef(fontRenderer);
+        env->DeleteLocalRef(mc);
+        return;
+    }
+
+    Setup2DProjection();
+    g_clickGUI->Render(env, fontRenderer, drawString);
+    RestoreProjection();
+
     env->DeleteLocalRef(fontRenderer);
     env->DeleteLocalRef(mc);
 }
@@ -385,6 +396,24 @@ void Renderer::Render3D(JNIEnv* env) {
     auto* blockO = g_moduleManager->Find("BlockOutline");
     if (blockO && blockO->IsEnabled()) {
         ((BlockOutline*)blockO)->OnSwapBuffers(env);
+    }
+
+    // Trail
+    auto* trail = g_moduleManager->Find("Trail");
+    if (trail && trail->IsEnabled()) {
+        ((Trail*)trail)->Render3D();
+    }
+
+    // NewChunks
+    auto* newChunks = g_moduleManager->Find("NewChunks");
+    if (newChunks && newChunks->IsEnabled()) {
+        ((NewChunks*)newChunks)->Render3D();
+    }
+
+    // CaveFinder
+    auto* caveFinder = g_moduleManager->Find("CaveFinder");
+    if (caveFinder && caveFinder->IsEnabled()) {
+        ((CaveFinder*)caveFinder)->Render3D();
     }
 }
 
@@ -470,14 +499,6 @@ void Renderer::Render2D(JNIEnv* env) {
             env->DeleteLocalRef(mc);
         }
     }
-}
-
-    Setup2DProjection();
-    g_clickGUI->Render(env, fontRenderer, drawString);
-    RestoreProjection();
-
-    env->DeleteLocalRef(fontRenderer);
-    env->DeleteLocalRef(mc);
 }
 
 void Renderer::RenderHUD(JNIEnv* env) {
@@ -578,6 +599,19 @@ void Renderer::RenderHUD(JNIEnv* env) {
         ((Keystrokes*)keys)->Render(env, fontRenderer, drawStr);
     }
 
+    // PotionEffects
+    auto* potionEff = g_moduleManager->Find("PotionEffects");
+    if (potionEff && potionEff->IsEnabled()) {
+        ((PotionEffects*)potionEff)->Render(env, fontRenderer, drawStr);
+    }
+
+    // ServerInfo
+    auto* serverInfo = g_moduleManager->Find("ServerInfo");
+    if (serverInfo && serverInfo->IsEnabled()) {
+        ((ServerInfo*)serverInfo)->Render(env, fontRenderer, drawStr);
+    }
+
     env->DeleteLocalRef(fontRenderer);
     env->DeleteLocalRef(mc);
 }
+

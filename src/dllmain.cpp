@@ -78,6 +78,10 @@
 #include "modules/combat/BowAimbot.h"
 #include "modules/combat/AutoRod.h"
 #include "modules/combat/AutoPot.h"
+#include "modules/combat/AntiCactus.h"
+#include "modules/combat/Jesus.h"
+#include "modules/combat/NoPush.h"
+#include "modules/combat/Zoot.h"
 
 // Visual additions
 #include "modules/visual/TargetHUD.h"
@@ -92,12 +96,21 @@
 #include "modules/visual/BlockOutline.h"
 #include "modules/visual/BreakProgress.h"
 #include "modules/visual/Scoreboard.h"
+#include "modules/visual/BossBar.h"
+#include "modules/visual/PotionEffects.h"
+#include "modules/visual/TimeChanger.h"
+#include "modules/visual/Trail.h"
 
 // Misc additions
 #include "modules/misc/Notifications.h"
 #include "modules/misc/CPSCounter.h"
 #include "modules/misc/Keystrokes.h"
 #include "modules/misc/Friends.h"
+#include "modules/misc/AutoAccept.h"
+#include "modules/misc/AutoHypixel.h"
+#include "modules/misc/AutoTip.h"
+#include "modules/misc/BanNotifier.h"
+#include "modules/misc/ServerInfo.h"
 #include "modules/player/AutoQueue.h"
 
 // Movement additions
@@ -117,18 +130,30 @@
 #include "modules/player/Eagle.h"
 #include "modules/player/AntiAfk.h"
 #include "modules/player/AutoEat.h"
+#include "modules/player/AntiThrow.h"
+#include "modules/player/ClickTP.h"
+#include "modules/player/NoFire.h"
+#include "modules/player/Nuker.h"
 
 // Exploit
 #include "modules/exploit/Disabler.h"
 #include "modules/exploit/Regen.h"
 #include "modules/exploit/Phase.h"
 #include "modules/exploit/PacketLogger.h"
+#include "modules/exploit/AntiBan.h"
+#include "modules/exploit/Crash.h"
+#include "modules/exploit/GodMode.h"
+#include "modules/exploit/PacketCancel.h"
 
 // World
 #include "modules/world/Waypoints.h"
 #include "modules/world/ChunkBorders.h"
 #include "modules/world/PlayerRadar.h"
 #include "modules/world/LightLevel.h"
+#include "modules/world/CaveFinder.h"
+#include "modules/world/Fucker.h"
+#include "modules/world/GhostHand.h"
+#include "modules/world/NewChunks.h"
 
 // Quality
 #include "modules/quality/HUDEditor.h"
@@ -136,6 +161,11 @@
 #include "modules/quality/Profiles.h"
 #include "modules/quality/DiscordRPC.h"
 #include "modules/quality/StreamerMode.h"
+
+// System
+#include "LogSystem.h"
+#include "modules/EventSystem.h"
+#include "modules/OnlineConfig.h"
 
 // Misc
 #include "modules/misc/Timer.h"
@@ -201,12 +231,6 @@ DWORD WINAPI TickThreadProc(LPVOID) {
                         g_tabGUI->OnKeyPress(VK_RETURN);
                     }
                 }
-
-                // ModuleSearch input (show/hide on F6, processed above)
-                if (g_moduleSearch && g_moduleSearch->IsOpen()) {
-                    // Char input via typed characters
-                    // Note: full char input requires hooking WM_CHAR
-                }
             }
         }
         Sleep(30);
@@ -239,6 +263,9 @@ DWORD WINAPI InitThreadProc(LPVOID) {
         g_vm->DetachCurrentThread();
         return 0;
     }
+
+    // Initialize LogSystem
+    LogSystem::Get().Init();
 
     // Load config and init modules
     ConfigManager::Get().Load(g_moduleManager);
@@ -279,6 +306,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<BowAimbot>();
         g_moduleManager->AddModule<AutoRod>();
         g_moduleManager->AddModule<AutoPot>();
+        g_moduleManager->AddModule<AntiCactus>();
+        g_moduleManager->AddModule<Jesus>();
+        g_moduleManager->AddModule<NoPush>();
+        g_moduleManager->AddModule<Zoot>();
 
         // Movement
         g_moduleManager->AddModule<AutoSprintMod>();
@@ -323,6 +354,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<BlockOutline>();
         g_moduleManager->AddModule<BreakProgress>();
         g_moduleManager->AddModule<Scoreboard>();
+        g_moduleManager->AddModule<BossBar>();
+        g_moduleManager->AddModule<PotionEffects>();
+        g_moduleManager->AddModule<TimeChanger>();
+        g_moduleManager->AddModule<Trail>();
 
         // HUD
         g_moduleManager->AddModule<HUD>();
@@ -347,6 +382,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<Eagle>();
         g_moduleManager->AddModule<AntiAfk>();
         g_moduleManager->AddModule<AutoEat>();
+        g_moduleManager->AddModule<AntiThrow>();
+        g_moduleManager->AddModule<ClickTP>();
+        g_moduleManager->AddModule<NoFire>();
+        g_moduleManager->AddModule<Nuker>();
 
         // AntiCheat
         g_moduleManager->AddModule<HypixelNPC>();
@@ -366,18 +405,31 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<AutoQueue>();
         g_moduleManager->AddModule<Notifications>();
         g_moduleManager->AddModule<Friends>();
+        g_moduleManager->AddModule<AutoAccept>();
+        g_moduleManager->AddModule<AutoHypixel>();
+        g_moduleManager->AddModule<AutoTip>();
+        g_moduleManager->AddModule<BanNotifier>();
+        g_moduleManager->AddModule<ServerInfo>();
 
         // Exploit
         g_moduleManager->AddModule<Disabler>();
         g_moduleManager->AddModule<Regen>();
         g_moduleManager->AddModule<Phase>();
         g_moduleManager->AddModule<PacketLogger>();
+        g_moduleManager->AddModule<AntiBan>();
+        g_moduleManager->AddModule<Crash>();
+        g_moduleManager->AddModule<GodMode>();
+        g_moduleManager->AddModule<PacketCancel>();
 
         // World
         g_moduleManager->AddModule<Waypoints>();
         g_moduleManager->AddModule<ChunkBorders>();
         g_moduleManager->AddModule<PlayerRadar>();
         g_moduleManager->AddModule<LightLevel>();
+        g_moduleManager->AddModule<CaveFinder>();
+        g_moduleManager->AddModule<Fucker>();
+        g_moduleManager->AddModule<GhostHand>();
+        g_moduleManager->AddModule<NewChunks>();
 
         // Quality
         g_moduleManager->AddModule<HUDEditor>();
@@ -433,3 +485,4 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
     }
     return TRUE;
 }
+
