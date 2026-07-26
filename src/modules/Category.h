@@ -6,6 +6,9 @@ enum class Category : int {
     Visual,
     Player,
     Misc,
+    Exploit,
+    World,
+    Quality,
     COUNT
 };
 
@@ -16,6 +19,9 @@ inline const char* CategoryName(Category c) {
     case Category::Visual: return "Visual";
     case Category::Player: return "Player";
     case Category::Misc: return "Misc";
+    case Category::Exploit: return "Exploit";
+    case Category::World: return "World";
+    case Category::Quality: return "Quality";
     default: return "Unknown";
     }
 }

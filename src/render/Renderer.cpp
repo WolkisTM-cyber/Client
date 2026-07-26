@@ -2,6 +2,23 @@
 #include "../modules/ModuleManager.h"
 #include "../modules/JNIHelper.h"
 #include "../gui/ClickGUI.h"
+#include "../gui/TabGUI.h"
+#include "../gui/ModuleSearch.h"
+#include "../modules/visual/TargetHUD.h"
+#include "../modules/visual/ArmorHUD.h"
+#include "../modules/visual/ItemESP.h"
+#include "../modules/visual/NameTags.h"
+#include "../modules/visual/Crosshair.h"
+#include "../modules/visual/BlockOutline.h"
+#include "../modules/visual/BreakProgress.h"
+#include "../modules/world/PlayerRadar.h"
+#include "../modules/world/Waypoints.h"
+#include "../modules/world/ChunkBorders.h"
+#include "../modules/misc/Notifications.h"
+#include "../modules/misc/CPSCounter.h"
+#include "../modules/misc/Keystrokes.h"
+#include "../modules/visual/MotionBlur.h"
+#include "../modules/quality/HUDEditor.h"
 #include <cmath>
 #include <cstdio>
 #include <GL/gl.h>
@@ -11,6 +28,9 @@
 extern ModuleManager* g_moduleManager;
 extern JavaVM* g_vm;
 extern ClickGUI* g_clickGUI;
+extern TabGUI* g_tabGUI;
+extern ModuleSearch* g_moduleSearch;
+extern TargetHUD* g_targetHUD;
 
 // Trampoline: 14 bytes original + 14-byte JMP back
 static BYTE g_originalBytes[14];
@@ -136,10 +156,18 @@ void Renderer::OnSwapBuffers(HDC hdc) {
     if (g_vm->GetEnv((void**)&env, JNI_VERSION_1_8) != JNI_OK) return;
     if (!env) return;
 
+    // MotionBlur before ESP
+    auto* motionBlur = g_moduleManager->Find("MotionBlur");
+    if (motionBlur && motionBlur->IsEnabled()) {
+        ((MotionBlur*)motionBlur)->OnSwapBuffers();
+    }
+
     RenderESP(env);
     RenderTracers(env);
     RenderClickGUI(env);
     RenderHUD(env);
+    Render3D(env);
+    Render2D(env);
 }
 
 void Renderer::RenderESP(JNIEnv* env) {
@@ -318,10 +346,131 @@ void Renderer::RenderClickGUI(JNIEnv* env) {
         "(Ljava/lang/String;III)I");
     if (!drawString || env->ExceptionCheck()) {
         env->ExceptionClear();
-        env->DeleteLocalRef(fontRenderer);
-        env->DeleteLocalRef(mc);
-        return;
+    env->DeleteLocalRef(fontRenderer);
+    env->DeleteLocalRef(mc);
+}
+
+void Renderer::Render3D(JNIEnv* env) {
+    // ItemESP
+    auto* itemESP = g_moduleManager->Find("ItemESP");
+    if (itemESP && itemESP->IsEnabled()) {
+        ((ItemESP*)itemESP)->Render3D();
     }
+
+    // NameTags
+    auto* nameTags = g_moduleManager->Find("NameTags");
+    if (nameTags && nameTags->IsEnabled()) {
+        ((NameTags*)nameTags)->Render3D(env);
+    }
+
+    // Waypoints
+    auto* waypoints = g_moduleManager->Find("Waypoints");
+    if (waypoints && waypoints->IsEnabled()) {
+        ((Waypoints*)waypoints)->Render3D(env);
+    }
+
+    // ChunkBorders
+    auto* chunks = g_moduleManager->Find("ChunkBorders");
+    if (chunks && chunks->IsEnabled()) {
+        ((ChunkBorders*)chunks)->Render3D(env);
+    }
+
+    // BreakProgress
+    auto* breakP = g_moduleManager->Find("BreakProgress");
+    if (breakP && breakP->IsEnabled()) {
+        ((BreakProgress*)breakP)->OnSwapBuffers(env);
+    }
+
+    // BlockOutline
+    auto* blockO = g_moduleManager->Find("BlockOutline");
+    if (blockO && blockO->IsEnabled()) {
+        ((BlockOutline*)blockO)->OnSwapBuffers(env);
+    }
+}
+
+void Renderer::Render2D(JNIEnv* env) {
+    // Crosshair
+    auto* crosshair = g_moduleManager->Find("Crosshair");
+    if (crosshair && crosshair->IsEnabled()) {
+        ((Crosshair*)crosshair)->Render2D();
+    }
+
+    // PlayerRadar
+    auto* radar = g_moduleManager->Find("PlayerRadar");
+    if (radar && radar->IsEnabled()) {
+        ((PlayerRadar*)radar)->Render2D(env);
+    }
+
+    // TabGUI
+    if (g_tabGUI && g_tabGUI->IsOpen()) {
+        auto mc = JNIHelper::GetMinecraft(env);
+        if (mc) {
+            auto& c = JNIHelper::Get();
+            jfieldID fontField = env->GetFieldID(c.minecraft, "fontRendererObj",
+                "Lnet/minecraft/client/gui/FontRenderer;");
+            if (fontField) {
+                jobject fr = env->GetObjectField(mc, fontField);
+                if (fr) {
+                    jmethodID drawStr = env->GetMethodID(
+                        env->GetObjectClass(fr), "drawString",
+                        "(Ljava/lang/String;III)I");
+                    if (drawStr) {
+                        g_tabGUI->Render(env, fr, drawStr);
+                    }
+                    env->DeleteLocalRef(fr);
+                }
+            }
+            env->DeleteLocalRef(mc);
+        }
+    }
+
+    // ModuleSearch
+    if (g_moduleSearch && g_moduleSearch->IsOpen()) {
+        auto mc = JNIHelper::GetMinecraft(env);
+        if (mc) {
+            auto& c = JNIHelper::Get();
+            jfieldID fontField = env->GetFieldID(c.minecraft, "fontRendererObj",
+                "Lnet/minecraft/client/gui/FontRenderer;");
+            if (fontField) {
+                jobject fr = env->GetObjectField(mc, fontField);
+                if (fr) {
+                    jmethodID drawStr = env->GetMethodID(
+                        env->GetObjectClass(fr), "drawString",
+                        "(Ljava/lang/String;III)I");
+                    if (drawStr) {
+                        g_moduleSearch->Render(env, fr, drawStr);
+                    }
+                    env->DeleteLocalRef(fr);
+                }
+            }
+            env->DeleteLocalRef(mc);
+        }
+    }
+
+    // HUDEditor
+    auto* hudEditor = g_moduleManager->Find("HUDEditor");
+    if (hudEditor && hudEditor->IsEnabled()) {
+        auto mc = JNIHelper::GetMinecraft(env);
+        if (mc) {
+            auto& c = JNIHelper::Get();
+            jfieldID fontField = env->GetFieldID(c.minecraft, "fontRendererObj",
+                "Lnet/minecraft/client/gui/FontRenderer;");
+            if (fontField) {
+                jobject fr = env->GetObjectField(mc, fontField);
+                if (fr) {
+                    jmethodID drawStr = env->GetMethodID(
+                        env->GetObjectClass(fr), "drawString",
+                        "(Ljava/lang/String;III)I");
+                    if (drawStr) {
+                        ((HUDEditor*)hudEditor)->Render(env, fr, drawStr);
+                    }
+                    env->DeleteLocalRef(fr);
+                }
+            }
+            env->DeleteLocalRef(mc);
+        }
+    }
+}
 
     Setup2DProjection();
     g_clickGUI->Render(env, fontRenderer, drawString);
@@ -332,13 +481,8 @@ void Renderer::RenderClickGUI(JNIEnv* env) {
 }
 
 void Renderer::RenderHUD(JNIEnv* env) {
-    auto* hudMod = g_moduleManager->Find("HUD");
-    if (!hudMod || !hudMod->IsEnabled()) return;
-
-    auto player = JNIHelper::GetPlayer(env);
-    if (!player) return;
     auto mc = JNIHelper::GetMinecraft(env);
-    if (!mc) { env->DeleteLocalRef(player); return; }
+    if (!mc) return;
 
     auto& c = JNIHelper::Get();
 
@@ -362,41 +506,78 @@ void Renderer::RenderHUD(JNIEnv* env) {
         if (env->ExceptionCheck()) env->ExceptionClear();
     }
 
-    if (!cached) { env->DeleteLocalRef(mc); env->DeleteLocalRef(player); return; }
+    if (!cached) { env->DeleteLocalRef(mc); return; }
 
     jobject fontRenderer = env->GetObjectField(mc, fontField);
-    if (!fontRenderer) { env->DeleteLocalRef(mc); env->DeleteLocalRef(player); return; }
+    if (!fontRenderer) { env->DeleteLocalRef(mc); return; }
 
-    double px = env->GetDoubleField(player, c.posX);
-    double py = env->GetDoubleField(player, c.posY);
-    double pz = env->GetDoubleField(player, c.posZ);
+    // HUD module: module list + coordinates
+    auto* hudMod = g_moduleManager->Find("HUD");
+    if (hudMod && hudMod->IsEnabled()) {
+        auto player = JNIHelper::GetPlayer(env);
+        if (player) {
+            double px = env->GetDoubleField(player, c.posX);
+            double py = env->GetDoubleField(player, c.posY);
+            double pz = env->GetDoubleField(player, c.posZ);
 
-    int y = 4;
-    auto modules = g_moduleManager->GetAll();
+            int y = 4;
+            auto modules = g_moduleManager->GetAll();
 
-    for (auto* mod : modules) {
-        if (!mod->IsEnabled()) continue;
-        jstring text = env->NewStringUTF(mod->GetDisplayName().c_str());
-        if (text) {
-            env->CallIntMethod(fontRenderer, drawStr, text, 4, y, 0x55FFFF);
-            if (env->ExceptionCheck()) env->ExceptionClear();
-            env->DeleteLocalRef(text);
+            for (auto* mod : modules) {
+                if (!mod->IsEnabled()) continue;
+                jstring text = env->NewStringUTF(mod->GetDisplayName().c_str());
+                if (text) {
+                    env->CallIntMethod(fontRenderer, drawStr, text, 4, y, 0x55FFFF);
+                    if (env->ExceptionCheck()) env->ExceptionClear();
+                    env->DeleteLocalRef(text);
+                }
+                y += 10;
+            }
+
+            char buf[64];
+            snprintf(buf, sizeof(buf), "XYZ: %.0f %.0f %.0f", px, py, pz);
+            jstring coordText = env->NewStringUTF(buf);
+            if (coordText) {
+                RECT r; GetClientRect(GetDesktopWindow(), &r);
+                env->CallIntMethod(fontRenderer, drawStr, coordText, 4,
+                    r.bottom - 20, 0xFFFFFF);
+                if (env->ExceptionCheck()) env->ExceptionClear();
+                env->DeleteLocalRef(coordText);
+            }
+            env->DeleteLocalRef(player);
         }
-        y += 10;
     }
 
-    char buf[64];
-    snprintf(buf, sizeof(buf), "XYZ: %.0f %.0f %.0f", px, py, pz);
-    jstring coordText = env->NewStringUTF(buf);
-    if (coordText) {
-        RECT r; GetClientRect(GetDesktopWindow(), &r);
-        env->CallIntMethod(fontRenderer, drawStr, coordText, 4,
-            r.bottom - 20, 0xFFFFFF);
-        if (env->ExceptionCheck()) env->ExceptionClear();
-        env->DeleteLocalRef(coordText);
+    // Notifications
+    auto* notifs = g_moduleManager->Find("Notifications");
+    if (notifs && notifs->IsEnabled()) {
+        ((Notifications*)notifs)->Render(env, fontRenderer, drawStr);
+    }
+
+    // TargetHUD
+    auto* targetHUD = g_moduleManager->Find("TargetHUD");
+    if (targetHUD && targetHUD->IsEnabled()) {
+        ((TargetHUD*)targetHUD)->Render(env, fontRenderer, drawStr);
+    }
+
+    // CPSCounter
+    auto* cps = g_moduleManager->Find("CPSCounter");
+    if (cps && cps->IsEnabled()) {
+        ((CPSCounter*)cps)->Render(env, fontRenderer, drawStr);
+    }
+
+    // ArmorHUD
+    auto* armor = g_moduleManager->Find("ArmorHUD");
+    if (armor && armor->IsEnabled()) {
+        ((ArmorHUD*)armor)->Render(env, fontRenderer, drawStr);
+    }
+
+    // Keystrokes
+    auto* keys = g_moduleManager->Find("Keystrokes");
+    if (keys && keys->IsEnabled()) {
+        ((Keystrokes*)keys)->Render(env, fontRenderer, drawStr);
     }
 
     env->DeleteLocalRef(fontRenderer);
     env->DeleteLocalRef(mc);
-    env->DeleteLocalRef(player);
 }

@@ -1,0 +1,40 @@
+#pragma once
+#include "../Module.h"
+#include "../JNIHelper.h"
+
+class StreamerMode : public Module {
+public:
+    StreamerMode() : Module("StreamerMode", "Streamer Mode", Category::Quality, 0) {
+        AddSetting(Setting::BoolSetting("HideIP", "Hide IP", true));
+        AddSetting(Setting::BoolSetting("HideName", "Hide Username", true));
+        AddSetting(Setting::BoolSetting("HideCoords", "Hide Coords", false));
+    }
+
+    void OnTick(JNIEnv* env) override {
+        if (!IsEnabled()) return;
+        auto mc = JNIHelper::GetMinecraft(env);
+        if (!mc) return;
+
+        auto& c = JNIHelper::Get();
+        jobject session = env->GetObjectField(mc, env->GetFieldID(
+            c.minecraft, "session", "Lnet/minecraft/util/Session;"));
+        if (!session) { env->DeleteLocalRef(mc); return; }
+
+        if (GetSetting("HideName")->bVal) {
+            jfieldID usernameField = env->GetFieldID(
+                env->GetObjectClass(session), "username",
+                "Ljava/lang/String;");
+            if (usernameField) {
+                jstring hidden = env->NewStringUTF("Player");
+                env->SetObjectField(session, usernameField, hidden);
+                env->DeleteLocalRef(hidden);
+            }
+        }
+
+        env->DeleteLocalRef(session);
+        env->DeleteLocalRef(mc);
+    }
+
+    bool ShouldHideCoord() { return IsEnabled() && GetSetting("HideCoords")->bVal; }
+    bool ShouldHideIP() { return IsEnabled() && GetSetting("HideIP")->bVal; }
+};

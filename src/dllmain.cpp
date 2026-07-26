@@ -66,6 +66,77 @@
 #include "modules/anticheat/AutoGG.h"
 #include "modules/anticheat/NoPitchLimit.h"
 
+// Packet
+#include "modules/packet/PacketUtil.h"
+
+// Combat additions
+#include "modules/combat/WTap.h"
+#include "modules/combat/BackTrack.h"
+#include "modules/combat/TriggerBot.h"
+#include "modules/combat/SuperKnockback.h"
+#include "modules/combat/HitBox.h"
+#include "modules/combat/BowAimbot.h"
+#include "modules/combat/AutoRod.h"
+#include "modules/combat/AutoPot.h"
+
+// Visual additions
+#include "modules/visual/TargetHUD.h"
+#include "modules/visual/ArmorHUD.h"
+#include "modules/visual/ItemESP.h"
+#include "modules/visual/NameTags.h"
+#include "modules/visual/FreeCam.h"
+#include "modules/visual/Crosshair.h"
+#include "modules/visual/MotionBlur.h"
+#include "modules/visual/NoFov.h"
+#include "modules/visual/ClearWater.h"
+#include "modules/visual/BlockOutline.h"
+#include "modules/visual/BreakProgress.h"
+#include "modules/visual/Scoreboard.h"
+
+// Misc additions
+#include "modules/misc/Notifications.h"
+#include "modules/misc/CPSCounter.h"
+#include "modules/misc/Keystrokes.h"
+#include "modules/misc/Friends.h"
+#include "modules/player/AutoQueue.h"
+
+// Movement additions
+#include "modules/movement/TargetStrafe.h"
+#include "modules/movement/InventoryMove.h"
+#include "modules/movement/SafeWalk.h"
+#include "modules/movement/Parkour.h"
+#include "modules/movement/Spider.h"
+#include "modules/movement/NoJumpDelay.h"
+#include "modules/movement/FastLadder.h"
+#include "modules/movement/AntiHunger.h"
+
+// Player additions
+#include "modules/player/Blink.h"
+#include "modules/player/SpeedMine.h"
+#include "modules/player/AutoRespawn.h"
+#include "modules/player/Eagle.h"
+#include "modules/player/AntiAfk.h"
+#include "modules/player/AutoEat.h"
+
+// Exploit
+#include "modules/exploit/Disabler.h"
+#include "modules/exploit/Regen.h"
+#include "modules/exploit/Phase.h"
+#include "modules/exploit/PacketLogger.h"
+
+// World
+#include "modules/world/Waypoints.h"
+#include "modules/world/ChunkBorders.h"
+#include "modules/world/PlayerRadar.h"
+#include "modules/world/LightLevel.h"
+
+// Quality
+#include "modules/quality/HUDEditor.h"
+#include "modules/quality/Theme.h"
+#include "modules/quality/Profiles.h"
+#include "modules/quality/DiscordRPC.h"
+#include "modules/quality/StreamerMode.h"
+
 // Misc
 #include "modules/misc/Timer.h"
 #include "modules/misc/AntiBot.h"
@@ -76,6 +147,8 @@
 
 // Gui
 #include "gui/ClickGUI.h"
+#include "gui/TabGUI.h"
+#include "gui/ModuleSearch.h"
 
 ModuleManager* g_moduleManager = nullptr;
 GUI* g_gui = nullptr;
@@ -84,6 +157,8 @@ static HANDLE g_tickThread = nullptr;
 static std::atomic<bool> g_running(false);
 static CommandManager* g_commandManager = nullptr;
 static ClickGUI* g_clickGUI = nullptr;
+TabGUI* g_tabGUI = nullptr;
+ModuleSearch* g_moduleSearch = nullptr;
 
 void SaveConfig() {
     if (g_moduleManager) ConfigManager::Get().Save(g_moduleManager);
@@ -103,6 +178,34 @@ DWORD WINAPI TickThreadProc(LPVOID) {
                     if (key && (GetAsyncKeyState(key) & 1)) {
                         mod->Toggle(env);
                     }
+                }
+
+                // TabGUI key
+                if (g_tabGUI && (GetAsyncKeyState(VK_TAB) & 1)) {
+                    g_tabGUI->Toggle();
+                }
+
+                // ModuleSearch key (F6)
+                if (g_moduleSearch && (GetAsyncKeyState(VK_F6) & 1)) {
+                    g_moduleSearch->Toggle();
+                }
+
+                // TabGUI navigation
+                if (g_tabGUI && g_tabGUI->IsOpen()) {
+                    for (int vk = VK_UP; vk <= VK_RIGHT; vk++) {
+                        if (GetAsyncKeyState(vk) & 1) {
+                            g_tabGUI->OnKeyPress(vk);
+                        }
+                    }
+                    if (GetAsyncKeyState(VK_RETURN) & 1) {
+                        g_tabGUI->OnKeyPress(VK_RETURN);
+                    }
+                }
+
+                // ModuleSearch input (show/hide on F6, processed above)
+                if (g_moduleSearch && g_moduleSearch->IsOpen()) {
+                    // Char input via typed characters
+                    // Note: full char input requires hooking WM_CHAR
                 }
             }
         }
@@ -167,7 +270,15 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<Criticals>();
         g_moduleManager->AddModule<AutoBlock>();
         g_moduleManager->AddModule<AntiKnockback>();
+        g_moduleManager->AddModule<WTap>();
+        g_moduleManager->AddModule<BackTrack>();
         g_moduleManager->AddModule<BedAura>();
+        g_moduleManager->AddModule<TriggerBot>();
+        g_moduleManager->AddModule<SuperKnockback>();
+        g_moduleManager->AddModule<HitBox>();
+        g_moduleManager->AddModule<BowAimbot>();
+        g_moduleManager->AddModule<AutoRod>();
+        g_moduleManager->AddModule<AutoPot>();
 
         // Movement
         g_moduleManager->AddModule<AutoSprintMod>();
@@ -181,6 +292,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<NoWeb>();
         g_moduleManager->AddModule<Strafe>();
         g_moduleManager->AddModule<IceSpeed>();
+        g_moduleManager->AddModule<TargetStrafe>();
+        g_moduleManager->AddModule<InventoryMove>();
+        g_moduleManager->AddModule<SafeWalk>();
+        g_moduleManager->AddModule<Parkour>();
+        g_moduleManager->AddModule<Spider>();
+        g_moduleManager->AddModule<NoJumpDelay>();
+        g_moduleManager->AddModule<FastLadder>();
+        g_moduleManager->AddModule<AntiHunger>();
 
         // Visual
         g_moduleManager->AddModule<FullBright>();
@@ -194,9 +313,23 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<XRay>();
         g_moduleManager->AddModule<NoCameraClip>();
         g_moduleManager->AddModule<Ambiance>();
+        g_moduleManager->AddModule<ItemESP>();
+        g_moduleManager->AddModule<NameTags>();
+        g_moduleManager->AddModule<FreeCam>();
+        g_moduleManager->AddModule<Crosshair>();
+        g_moduleManager->AddModule<MotionBlur>();
+        g_moduleManager->AddModule<NoFov>();
+        g_moduleManager->AddModule<ClearWater>();
+        g_moduleManager->AddModule<BlockOutline>();
+        g_moduleManager->AddModule<BreakProgress>();
+        g_moduleManager->AddModule<Scoreboard>();
 
         // HUD
         g_moduleManager->AddModule<HUD>();
+        g_moduleManager->AddModule<TargetHUD>();
+        g_moduleManager->AddModule<ArmorHUD>();
+        g_moduleManager->AddModule<Keystrokes>();
+        g_moduleManager->AddModule<CPSCounter>();
 
         // Player
         g_moduleManager->AddModule<NoFall>();
@@ -208,6 +341,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<AutoArmor>();
         g_moduleManager->AddModule<ChestStealer>();
         g_moduleManager->AddModule<InvCleaner>();
+        g_moduleManager->AddModule<Blink>();
+        g_moduleManager->AddModule<SpeedMine>();
+        g_moduleManager->AddModule<AutoRespawn>();
+        g_moduleManager->AddModule<Eagle>();
+        g_moduleManager->AddModule<AntiAfk>();
+        g_moduleManager->AddModule<AutoEat>();
 
         // AntiCheat
         g_moduleManager->AddModule<HypixelNPC>();
@@ -224,9 +363,33 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<Spammer>();
         g_moduleManager->AddModule<Derp>();
         g_moduleManager->AddModule<AutoL>();
+        g_moduleManager->AddModule<AutoQueue>();
+        g_moduleManager->AddModule<Notifications>();
+        g_moduleManager->AddModule<Friends>();
+
+        // Exploit
+        g_moduleManager->AddModule<Disabler>();
+        g_moduleManager->AddModule<Regen>();
+        g_moduleManager->AddModule<Phase>();
+        g_moduleManager->AddModule<PacketLogger>();
+
+        // World
+        g_moduleManager->AddModule<Waypoints>();
+        g_moduleManager->AddModule<ChunkBorders>();
+        g_moduleManager->AddModule<PlayerRadar>();
+        g_moduleManager->AddModule<LightLevel>();
+
+        // Quality
+        g_moduleManager->AddModule<HUDEditor>();
+        g_moduleManager->AddModule<Theme>();
+        g_moduleManager->AddModule<Profiles>();
+        g_moduleManager->AddModule<DiscordRPC>();
+        g_moduleManager->AddModule<StreamerMode>();
 
         // ClickGUI
         g_clickGUI = g_moduleManager->AddModule<ClickGUI>();
+        g_tabGUI = new TabGUI();
+        g_moduleSearch = new ModuleSearch();
 
         g_running.store(true);
         g_tickThread = CreateThread(nullptr, 0, TickThreadProc, nullptr, 0, nullptr);
@@ -255,10 +418,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
             }
         }
 
-        delete g_commandManager;
-        g_commandManager = nullptr;
-        delete g_moduleManager;
-        g_moduleManager = nullptr;
+        delete g_tabGUI; g_tabGUI = nullptr;
+        delete g_moduleSearch; g_moduleSearch = nullptr;
+        delete g_commandManager; g_commandManager = nullptr;
+        delete g_moduleManager; g_moduleManager = nullptr;
 
         if (g_gui) {
             g_gui->Destroy();

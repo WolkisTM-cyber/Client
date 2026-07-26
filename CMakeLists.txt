@@ -12,6 +12,7 @@ set(SOURCES
     src/modules/Module.cpp
     src/modules/ModuleManager.cpp
     src/modules/JNIHelper.cpp
+    src/modules/packet/PacketUtil.cpp
     src/config/ConfigManager.cpp
     src/render/Renderer.cpp
     src/command/CommandManager.cpp
