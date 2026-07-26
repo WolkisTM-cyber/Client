@@ -1,16 +1,29 @@
 #pragma once
 #include "../Module.h"
 #include "../JNIHelper.h"
+#include "../packet/PacketEvent.h"
 
 class Velocity : public Module {
 public:
     Velocity() : Module("Velocity", "Velocity", Category::Combat, 0) {
         AddSetting(Setting::IntSetting("Horizontal", "Horizontal %", 0, 0, 100));
         AddSetting(Setting::IntSetting("Vertical", "Vertical %", 0, 0, 100));
-        AddSetting(Setting::ModeSetting("Mode", "Mode", {"Cancel", "Reduce", "Push"}, 1));
+        AddSetting(Setting::ModeSetting("Mode", "Mode", {"Cancel", "Reduce", "Push"}, 0));
+
+        PacketListener::Get().Register([this](PacketEvent& e) {
+            if (!IsEnabled() || e.direction != PacketDirection::Inbound) return;
+            if (e.packetClassName.find("S12PacketEntityVelocity") != std::string::npos ||
+                e.packetClassName.find("S27PacketExplosion") != std::string::npos) {
+                int mode = GetSetting("Mode")->modeVal;
+                if (mode == 0) {
+                    e.Cancel();
+                }
+            }
+        });
     }
 
     void OnTick(JNIEnv* env) override {
+        if (!IsEnabled()) return;
         auto player = JNIHelper::GetPlayer(env);
         if (!player) return;
 
@@ -44,3 +57,4 @@ public:
         env->DeleteLocalRef(player);
     }
 };
+

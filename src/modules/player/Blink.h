@@ -2,14 +2,28 @@
 #include "../Module.h"
 #include "../JNIHelper.h"
 #include "../packet/PacketUtil.h"
+#include "../packet/PacketEvent.h"
 #include <vector>
-#include <queue>
 
 class Blink : public Module {
 public:
-    Blink() : Module("Blink", "Blink", Category::Player, 0) {}
+    Blink() : Module("Blink", "Blink", Category::Player, 0) {
+        PacketListener::Get().Register([this](PacketEvent& e) {
+            if (!IsEnabled() || e.direction != PacketDirection::Outbound) return;
+            if (e.packetClassName.find("C03PacketPlayer") != std::string::npos ||
+                e.packetClassName.find("C04PacketPlayerPosition") != std::string::npos ||
+                e.packetClassName.find("C05PacketPlayerLook") != std::string::npos ||
+                e.packetClassName.find("C06PacketPlayerPosLook") != std::string::npos) {
+                if (e.env && e.packet) {
+                    packetQueue_.push_back(e.env->NewGlobalRef(e.packet));
+                    e.Cancel();
+                }
+            }
+        });
+    }
 
     void OnEnable(JNIEnv* env) override {
+        packetQueue_.clear();
         auto player = JNIHelper::GetPlayer(env);
         if (!player) return;
         auto& c = JNIHelper::Get();
@@ -18,7 +32,6 @@ public:
         posY_ = env->GetDoubleField(player, c.posY);
         posZ_ = env->GetDoubleField(player, c.posZ);
 
-        // Cancel all motion
         env->SetDoubleField(player, c.motionX, 0);
         env->SetDoubleField(player, c.motionY, 0);
         env->SetDoubleField(player, c.motionZ, 0);
@@ -26,15 +39,13 @@ public:
     }
 
     void OnDisable(JNIEnv* env) override {
-        auto player = JNIHelper::GetPlayer(env);
-        if (!player) return;
-        auto& c = JNIHelper::Get();
-
-        // Teleport back to original position
-        env->SetDoubleField(player, c.posX, posX_);
-        env->SetDoubleField(player, c.posY, posY_);
-        env->SetDoubleField(player, c.posZ, posZ_);
-        env->DeleteLocalRef(player);
+        for (auto& packet : packetQueue_) {
+            if (env && packet) {
+                PacketUtil::SendPacket(env, packet);
+                env->DeleteGlobalRef(packet);
+            }
+        }
+        packetQueue_.clear();
     }
 
     void OnTick(JNIEnv* env) override {
@@ -43,20 +54,15 @@ public:
         if (!player) return;
         auto& c = JNIHelper::Get();
 
-        // Freeze in place
         env->SetDoubleField(player, c.motionX, 0);
         env->SetDoubleField(player, c.motionY, 0);
         env->SetDoubleField(player, c.motionZ, 0);
-        env->SetBooleanField(player, c.onGround, true);
-
-        // Prevent position from updating
-        env->SetDoubleField(player, c.posX, posX_);
-        env->SetDoubleField(player, c.posY, posY_);
-        env->SetDoubleField(player, c.posZ, posZ_);
 
         env->DeleteLocalRef(player);
     }
 
 private:
     double posX_ = 0, posY_ = 0, posZ_ = 0;
+    std::vector<jobject> packetQueue_;
 };
+

@@ -103,13 +103,17 @@ public:
     void Render(JNIEnv* env, jobject fr, jmethodID drawStr) {
         if (!target_) return;
 
+        // Animate HP bar
+        animatedHP_ += (targetHP_ - animatedHP_) * 0.15f;
+
         char buf[128];
         snprintf(buf, sizeof(buf), "%s HP: %.1f [%.1fm]",
                  targetName_.c_str(), targetHP_, targetDist_);
 
         jstring text = env->NewStringUTF(buf);
         if (text && drawStr) {
-            env->CallIntMethod(fr, drawStr, text, 4, 100, 0xFF5555);
+            int color = (animatedHP_ > 15.0f) ? 0x55FF55 : ((animatedHP_ > 7.0f) ? 0xFFAA00 : 0xFF5555);
+            env->CallIntMethod(fr, drawStr, text, 4, 100, color);
             if (env->ExceptionCheck()) env->ExceptionClear();
             env->DeleteLocalRef(text);
         }
@@ -123,5 +127,6 @@ private:
     jobject target_ = nullptr;
     double targetDist_ = 0;
     float targetHP_ = 20.0f;
+    float animatedHP_ = 20.0f;
     std::string targetName_;
 };

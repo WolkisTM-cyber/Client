@@ -15,6 +15,7 @@ set(SOURCES
     src/modules/packet/PacketUtil.cpp
     src/config/ConfigManager.cpp
     src/render/Renderer.cpp
+    src/render/ShaderEngine.cpp
     src/command/CommandManager.cpp
     src/gui/ClickGUI.cpp
 )

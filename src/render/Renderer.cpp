@@ -13,6 +13,8 @@
 #include "../modules/visual/BreakProgress.h"
 #include "../modules/visual/Trail.h"
 #include "../modules/visual/PotionEffects.h"
+#include "../modules/visual/Capes.h"
+#include "ShaderEngine.h"
 #include "../modules/world/PlayerRadar.h"
 #include "../modules/world/Waypoints.h"
 #include "../modules/world/ChunkBorders.h"
@@ -414,6 +416,12 @@ void Renderer::Render3D(JNIEnv* env) {
     auto* caveFinder = g_moduleManager->Find("CaveFinder");
     if (caveFinder && caveFinder->IsEnabled()) {
         ((CaveFinder*)caveFinder)->Render3D();
+    }
+
+    // Capes
+    auto* capes = g_moduleManager->Find("Capes");
+    if (capes && capes->IsEnabled()) {
+        ((Capes*)capes)->Render3D(env);
     }
 }
 

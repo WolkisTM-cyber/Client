@@ -100,6 +100,7 @@
 #include "modules/visual/PotionEffects.h"
 #include "modules/visual/TimeChanger.h"
 #include "modules/visual/Trail.h"
+#include "modules/visual/Capes.h"
 
 // Misc additions
 #include "modules/misc/Notifications.h"
@@ -154,6 +155,7 @@
 #include "modules/world/Fucker.h"
 #include "modules/world/GhostHand.h"
 #include "modules/world/NewChunks.h"
+#include "modules/world/PathFinder.h"
 
 // Quality
 #include "modules/quality/HUDEditor.h"
@@ -360,6 +362,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<PotionEffects>();
         g_moduleManager->AddModule<TimeChanger>();
         g_moduleManager->AddModule<Trail>();
+        g_moduleManager->AddModule<Capes>();
 
         // HUD
         g_moduleManager->AddModule<HUD>();
@@ -433,6 +436,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ulReason, LPVOID lpReserved) {
         g_moduleManager->AddModule<Fucker>();
         g_moduleManager->AddModule<GhostHand>();
         g_moduleManager->AddModule<NewChunks>();
+        g_moduleManager->AddModule<PathFinder>();
 
         // Quality
         g_moduleManager->AddModule<HUDEditor>();
