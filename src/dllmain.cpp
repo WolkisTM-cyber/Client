@@ -204,93 +204,110 @@ void SaveConfig() {
 }
 
 DWORD WINAPI TickThreadProc(LPVOID) {
-    while (g_running.load()) {
-        if (g_vm && g_moduleManager) {
-            JNIEnv* env = nullptr;
-            jint getEnvErr = g_vm->GetEnv((void**)&env, JNI_VERSION_1_8);
-            if (getEnvErr == JNI_OK && env) {
-                g_moduleManager->OnTick(env);
+    __try {
+        while (g_running.load()) {
+            if (g_vm && g_moduleManager) {
+                JNIEnv* env = nullptr;
+                jint getEnvErr = g_vm->GetEnv((void**)&env, JNI_VERSION_1_8);
+                if (getEnvErr == JNI_OK && env) {
+                    __try {
+                        g_moduleManager->OnTick(env);
 
-                // Check keybinds
-                for (auto* mod : g_moduleManager->GetAll()) {
-                    int key = mod->GetKey();
-                    if (key && (GetAsyncKeyState(key) & 1)) {
-                        mod->Toggle(env);
-                    }
-                }
-
-                // TabGUI key
-                if (g_tabGUI && (GetAsyncKeyState(VK_TAB) & 1)) {
-                    g_tabGUI->Toggle();
-                }
-
-                // ClickGUI key (Right Shift or Insert)
-                if (g_clickGUI && (GetAsyncKeyState(VK_INSERT) & 1)) {
-                    g_clickGUI->Toggle(env);
-                }
-
-                // ModuleSearch key (F6)
-                if (g_moduleSearch && (GetAsyncKeyState(VK_F6) & 1)) {
-                    g_moduleSearch->Toggle();
-                }
-
-                // TabGUI navigation
-                if (g_tabGUI && g_tabGUI->IsOpen()) {
-                    for (int vk = VK_UP; vk <= VK_RIGHT; vk++) {
-                        if (GetAsyncKeyState(vk) & 1) {
-                            g_tabGUI->OnKeyPress(vk);
+                        // Check keybinds
+                        for (auto* mod : g_moduleManager->GetAll()) {
+                            int key = mod->GetKey();
+                            if (key && (GetAsyncKeyState(key) & 1)) {
+                                mod->Toggle(env);
+                            }
                         }
-                    }
-                    if (GetAsyncKeyState(VK_RETURN) & 1) {
-                        g_tabGUI->OnKeyPress(VK_RETURN);
+
+                        // TabGUI key
+                        if (g_tabGUI && (GetAsyncKeyState(VK_TAB) & 1)) {
+                            g_tabGUI->Toggle();
+                        }
+
+                        // ClickGUI key (Right Shift or Insert)
+                        if (g_clickGUI && (GetAsyncKeyState(VK_INSERT) & 1)) {
+                            g_clickGUI->Toggle(env);
+                        }
+                        if (g_clickGUI && (GetAsyncKeyState(VK_RSHIFT) & 1)) {
+                            g_clickGUI->Toggle(env);
+                        }
+
+                        // ModuleSearch key (F6)
+                        if (g_moduleSearch && (GetAsyncKeyState(VK_F6) & 1)) {
+                            g_moduleSearch->Toggle();
+                        }
+
+                        // TabGUI navigation
+                        if (g_tabGUI && g_tabGUI->IsOpen()) {
+                            for (int vk = VK_UP; vk <= VK_RIGHT; vk++) {
+                                if (GetAsyncKeyState(vk) & 1) {
+                                    g_tabGUI->OnKeyPress(vk);
+                                }
+                            }
+                            if (GetAsyncKeyState(VK_RETURN) & 1) {
+                                g_tabGUI->OnKeyPress(VK_RETURN);
+                            }
+                        }
+                    } __except (EXCEPTION_EXECUTE_HANDLER) {
+                        LogSystem::Get().CrashLog("TickThreadProc iteration exception caught cleanly.");
                     }
                 }
             }
+            Sleep(30);
         }
-        Sleep(30);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        LogSystem::Get().CrashLog("TickThreadProc fatal exception caught cleanly.");
     }
     return 0;
 }
 
 DWORD WINAPI InitThreadProc(LPVOID) {
-    Sleep(2000);
+    __try {
+        Sleep(1500);
 
-    typedef jint(JNICALL* JNI_GetCreatedJavaVMs_t)(JavaVM**, jsize, jsize*);
-    HMODULE jvmModule = GetModuleHandleW(L"jvm.dll");
-    if (!jvmModule) jvmModule = LoadLibraryW(L"jvm.dll");
-    if (!jvmModule) return 0;
+        typedef jint(JNICALL* JNI_GetCreatedJavaVMs_t)(JavaVM**, jsize, jsize*);
+        HMODULE jvmModule = GetModuleHandleW(L"jvm.dll");
+        if (!jvmModule) jvmModule = LoadLibraryW(L"jvm.dll");
+        if (!jvmModule) return 0;
 
-    auto JNI_GetCreatedJavaVMs = (JNI_GetCreatedJavaVMs_t)GetProcAddress(jvmModule, "JNI_GetCreatedJavaVMs");
-    if (!JNI_GetCreatedJavaVMs) return 0;
+        auto JNI_GetCreatedJavaVMs = (JNI_GetCreatedJavaVMs_t)GetProcAddress(jvmModule, "JNI_GetCreatedJavaVMs");
+        if (!JNI_GetCreatedJavaVMs) return 0;
 
-    jsize count = 0;
-    if (JNI_GetCreatedJavaVMs(&g_vm, 1, &count) != JNI_OK || count == 0) return 0;
+        jsize count = 0;
+        if (JNI_GetCreatedJavaVMs(&g_vm, 1, &count) != JNI_OK || count == 0) return 0;
 
-    JNIEnv* env = nullptr;
-    jint getEnvErr = g_vm->GetEnv((void**)&env, JNI_VERSION_1_8);
-    if (getEnvErr != JNI_OK || !env) {
-        JavaVMAttachArgs args = { JNI_VERSION_1_8, "ClientInit", nullptr };
-        if (g_vm->AttachCurrentThread((void**)&env, &args) != JNI_OK) return 0;
+        JNIEnv* env = nullptr;
+        jint getEnvErr = g_vm->GetEnv((void**)&env, JNI_VERSION_1_8);
+        if (getEnvErr != JNI_OK || !env) {
+            JavaVMAttachArgs args = { JNI_VERSION_1_8, "ClientInit", nullptr };
+            if (g_vm->AttachCurrentThread((void**)&env, &args) != JNI_OK) return 0;
+        }
+
+        if (!JNIHelper::Initialize(env)) {
+            g_vm->DetachCurrentThread();
+            return 0;
+        }
+
+        // Initialize LogSystem
+        LogSystem::Get().Init();
+        LogSystem::Get().WriteInfo("Client initialization starting...");
+
+        // Load config and init modules
+        ConfigManager::Get().Load(g_moduleManager);
+        g_moduleManager->Init(env);
+
+        // Init renderer
+        Renderer::Get().Init();
+        LogSystem::Get().WriteInfo("Client initialization complete!");
+
+        MessageBeep(MB_OK); // Audible beep signal when Client is fully initialized
+
+        if (getEnvErr == JNI_EDETACHED) g_vm->DetachCurrentThread();
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        LogSystem::Get().CrashLog("InitThreadProc exception caught cleanly during startup.");
     }
-
-    if (!JNIHelper::Initialize(env)) {
-        g_vm->DetachCurrentThread();
-        return 0;
-    }
-
-    // Initialize LogSystem
-    LogSystem::Get().Init();
-
-    // Load config and init modules
-    ConfigManager::Get().Load(g_moduleManager);
-    g_moduleManager->Init(env);
-
-    // Init renderer
-    Renderer::Get().Init();
-
-    MessageBeep(MB_OK); // Audible beep signal when Client is fully initialized
-
-    if (getEnvErr == JNI_EDETACHED) g_vm->DetachCurrentThread();
     return 0;
 }
 

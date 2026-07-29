@@ -45,17 +45,26 @@ extern TargetHUD* g_targetHUD;
 static BYTE g_originalBytes[14];
 static BYTE g_trampoline[28];
 static bool g_hookInstalled = false;
+static std::atomic<bool> g_unhooking(false);
 typedef BOOL(WINAPI* wglSwapBuffers_t)(HDC);
 static wglSwapBuffers_t g_original = nullptr;
 
 static BOOL WINAPI wglSwapBuffers_hook(HDC hdc) {
-    if (g_vm && g_moduleManager) {
-        JNIEnv* env = nullptr;
-        if (g_vm->GetEnv((void**)&env, JNI_VERSION_1_8) == JNI_OK && env) {
-            Renderer::Get().OnSwapBuffers(hdc);
-        }
+    if (g_unhooking.load()) {
+        return ((wglSwapBuffers_t)(void*)g_trampoline)(hdc);
     }
-    // Call trampoline (original + JMP back)
+
+    __try {
+        if (g_vm && g_moduleManager) {
+            JNIEnv* env = nullptr;
+            if (g_vm->GetEnv((void**)&env, JNI_VERSION_1_8) == JNI_OK && env) {
+                Renderer::Get().OnSwapBuffers(hdc);
+            }
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        LogSystem::Get().CrashLog("wglSwapBuffers_hook SEH caught rendering exception.");
+    }
+
     return ((wglSwapBuffers_t)(void*)g_trampoline)(hdc);
 }
 
@@ -99,11 +108,15 @@ bool Renderer::Init() {
     VirtualProtect(target, 14, old, &old);
     g_hookInstalled = true;
     initialized_ = true;
+    g_unhooking.store(false);
     return true;
 }
 
 void Renderer::Shutdown() {
     if (!g_hookInstalled || !g_original) return;
+
+    g_unhooking.store(true);
+    Sleep(80); // Wait for ongoing render frames to finish safely
 
     HMODULE glModule = GetModuleHandleW(L"opengl32.dll");
     if (!glModule) return;
@@ -116,6 +129,8 @@ void Renderer::Shutdown() {
     memcpy(target, g_originalBytes, 14);
     VirtualProtect(target, 14, old, &old);
     g_hookInstalled = false;
+    initialized_ = false;
+    g_unhooking.store(false);
 }
 
 void Renderer::Setup3DProjection() {
@@ -630,6 +645,93 @@ void Renderer::RenderHUD(JNIEnv* env) {
     if (serverInfo && serverInfo->IsEnabled()) {
         ((ServerInfo*)serverInfo)->Render(env, fontRenderer, drawStr);
     }
+
+    // --- Visual Debug Lines & Logger Overlay ---
+    static DWORD lastTime = GetTickCount();
+    static int frameCount = 0;
+    static float currentFps = 0.0f;
+    frameCount++;
+    DWORD now = GetTickCount();
+    if (now - lastTime >= 1000) {
+        currentFps = (float)frameCount * 1000.0f / (float)(now - lastTime);
+        frameCount = 0;
+        lastTime = now;
+    }
+
+    GLint vp[4];
+    glGetIntegerv(GL_VIEWPORT, vp);
+    int vw = vp[2] > 0 ? vp[2] : 854;
+    int vh = vp[3] > 0 ? vp[3] : 480;
+
+    int dbgW = 180;
+    int dbgH = 65;
+    int dbgX = vw - dbgW - 10;
+    int dbgY = vh - dbgH - 10;
+
+    glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT);
+    glDisable(GL_TEXTURE_2D);
+    glDisable(GL_LIGHTING);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Card background
+    glColor4f(0.06f, 0.06f, 0.08f, 0.88f);
+    glBegin(GL_QUADS);
+    glVertex2i(dbgX, dbgY);
+    glVertex2i(dbgX + dbgW, dbgY);
+    glVertex2i(dbgX + dbgW, dbgY + dbgH);
+    glVertex2i(dbgX, dbgY + dbgH);
+    glEnd();
+
+    // Top cyan line
+    glColor4f(0.0f, 0.80f, 0.78f, 1.0f);
+    glBegin(GL_QUADS);
+    glVertex2i(dbgX, dbgY);
+    glVertex2i(dbgX + dbgW, dbgY);
+    glVertex2i(dbgX + dbgW, dbgY + 2);
+    glVertex2i(dbgX, dbgY + 2);
+    glEnd();
+
+    // Outline
+    glColor4f(0.20f, 0.20f, 0.25f, 0.7f);
+    glBegin(GL_LINE_LOOP);
+    glVertex2i(dbgX, dbgY);
+    glVertex2i(dbgX + dbgW, dbgY);
+    glVertex2i(dbgX + dbgW, dbgY + dbgH);
+    glVertex2i(dbgX, dbgY + dbgH);
+    glEnd();
+
+    int activeCount = 0;
+    if (g_moduleManager) {
+        for (auto* m : g_moduleManager->GetAll()) {
+            if (m->IsEnabled()) activeCount++;
+        }
+    }
+
+    char d1[64], d2[64], d3[64], d4[64];
+    snprintf(d1, sizeof(d1), "[DEBUG] FPS: %.1f", currentFps);
+    snprintf(d2, sizeof(d2), "[DEBUG] JNI: Connected (1.8.9)");
+    snprintf(d3, sizeof(d3), "[DEBUG] Active Mods: %d", activeCount);
+    snprintf(d4, sizeof(d4), "[DEBUG] SEH Exceptions: %d (MC Safe)", LogSystem::Get().GetExceptionCount());
+
+    glEnable(GL_TEXTURE_2D);
+    jstring j1 = env->NewStringUTF(d1);
+    jstring j2 = env->NewStringUTF(d2);
+    jstring j3 = env->NewStringUTF(d3);
+    jstring j4 = env->NewStringUTF(d4);
+
+    if (j1 && drawStr) env->CallIntMethod(fontRenderer, drawStr, j1, dbgX + 6, dbgY + 6, 0x00CEC9);
+    if (j2 && drawStr) env->CallIntMethod(fontRenderer, drawStr, j2, dbgX + 6, dbgY + 20, 0x55FF55);
+    if (j3 && drawStr) env->CallIntMethod(fontRenderer, drawStr, j3, dbgX + 6, dbgY + 34, 0xF1F2F6);
+    if (j4 && drawStr) env->CallIntMethod(fontRenderer, drawStr, j4, dbgX + 6, dbgY + 48, LogSystem::Get().GetExceptionCount() > 0 ? 0xFF5555 : 0xAAAAAA);
+
+    if (j1) env->DeleteLocalRef(j1);
+    if (j2) env->DeleteLocalRef(j2);
+    if (j3) env->DeleteLocalRef(j3);
+    if (j4) env->DeleteLocalRef(j4);
+    if (env->ExceptionCheck()) env->ExceptionClear();
+
+    glPopAttrib();
 
     env->DeleteLocalRef(fontRenderer);
     env->DeleteLocalRef(mc);

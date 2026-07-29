@@ -3,7 +3,9 @@
 #include <fstream>
 #include <ctime>
 #include <mutex>
+#include <atomic>
 #include <windows.h>
+#include <shlobj.h>
 
 class LogSystem {
 public:
@@ -13,6 +15,9 @@ public:
     }
 
     void Init() {
+        std::lock_guard<std::mutex> lock(mtx_);
+        if (initialized_) return;
+
         wchar_t appData[MAX_PATH];
         if (SUCCEEDED(SHGetFolderPathW(nullptr, CSIDL_APPDATA, nullptr, 0, appData))) {
             logPath_ = std::string(appData, appData + wcslen(appData)) + "\\Client\\logs\\";
@@ -27,12 +32,62 @@ public:
 
             logFile_.open(logPath_, std::ios::app);
             if (logFile_.is_open()) {
-                Write("Log system initialized");
+                initialized_ = true;
+                WriteInternal("[INFO] Log system initialized for Minecraft 1.8.9 Client");
             }
         }
     }
 
     void Write(const std::string& message) {
+        WriteInfo(message);
+    }
+
+    void WriteDebug(const std::string& message) {
+        WriteInternal("[DEBUG] " + message);
+    }
+
+    void WriteInfo(const std::string& message) {
+        WriteInternal("[INFO] " + message);
+    }
+
+    void WriteWarn(const std::string& message) {
+        WriteInternal("[WARN] " + message);
+    }
+
+    void WriteError(const std::string& message) {
+        WriteInternal("[ERROR] " + message);
+    }
+
+    void WriteModule(const std::string& module, const std::string& message) {
+        WriteInternal("[MODULE][" + module + "] " + message);
+    }
+
+    void CrashLog(const std::string& context) {
+        exceptionCount_++;
+        WriteInternal("!!! SAFE SEH CAUGHT EXCEPTION: " + context + " !!! [MC Maintained Running]");
+    }
+
+    int GetExceptionCount() const { return exceptionCount_.load(); }
+    void ResetExceptionCount() { exceptionCount_.store(0); }
+
+    bool IsInitialized() const { return initialized_; }
+
+    void Shutdown() {
+        std::lock_guard<std::mutex> lock(mtx_);
+        if (logFile_.is_open()) {
+            WriteInternal("[INFO] Log system shutting down for DLL detach / re-injection");
+            logFile_.close();
+        }
+        initialized_ = false;
+    }
+
+private:
+    LogSystem() : initialized_(false), exceptionCount_(0) {}
+    ~LogSystem() {
+        Shutdown();
+    }
+
+    void WriteInternal(const std::string& message) {
         std::lock_guard<std::mutex> lock(mtx_);
         if (!logFile_.is_open()) return;
 
@@ -46,29 +101,10 @@ public:
         logFile_.flush();
     }
 
-    void WriteModule(const std::string& module, const std::string& message) {
-        Write("[" + module + "] " + message);
-    }
-
-    void CrashLog(const std::string& context) {
-        Write("!!! CRASH: " + context + " !!!");
-        // Save and close
-        if (logFile_.is_open()) {
-            logFile_ << "=== CRASH LOG END ===" << std::endl;
-            logFile_.close();
-        }
-    }
-
-private:
-    LogSystem() = default;
-    ~LogSystem() {
-        if (logFile_.is_open()) {
-            Write("Log system shutdown");
-            logFile_.close();
-        }
-    }
-
     std::string logPath_;
     std::ofstream logFile_;
     std::mutex mtx_;
+    bool initialized_;
+    std::atomic<int> exceptionCount_;
 };
+

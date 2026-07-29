@@ -7,6 +7,7 @@
 #include <string>
 
 extern ModuleManager* g_moduleManager;
+extern JavaVM* g_vm;
 
 class TabGUI {
 public:
@@ -20,24 +21,24 @@ public:
     void Render(JNIEnv* env, jobject fontRenderer, jmethodID drawString) {
         if (!open_) return;
 
-        auto* renderer = Renderer::GetInstance();
-        RECT r; GetClientRect(GetDesktopWindow(), &r);
-        int sw = r.right, sh = r.bottom;
+        GLint vp[4];
+        glGetIntegerv(GL_VIEWPORT, vp);
+        int sw = vp[2] > 0 ? vp[2] : 854;
+        int sh = vp[3] > 0 ? vp[3] : 480;
 
-        renderer->Setup2DProjection();
-
-        int boxW = 100;
-        int boxH = 12 * (int)categories_.size() + 4;
-        int boxX = sw / 2 - boxW / 2;
-        int boxY = sh / 2 - boxH / 2;
+        int boxW = 110;
+        int boxH = 14 * (int)categories_.size() + 6;
+        int boxX = 20;
+        int boxY = 60;
 
         glPushAttrib(GL_ENABLE_BIT | GL_COLOR_BUFFER_BIT);
         glDisable(GL_TEXTURE_2D);
         glDisable(GL_LIGHTING);
         glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         // Background
-        glColor4f(0.0f, 0.0f, 0.0f, 0.6f);
+        glColor4f(0.08f, 0.08f, 0.11f, 0.92f);
         glBegin(GL_QUADS);
         glVertex2i(boxX, boxY);
         glVertex2i(boxX + boxW, boxY);
@@ -45,30 +46,41 @@ public:
         glVertex2i(boxX, boxY + boxH);
         glEnd();
 
+        // Top Accent Line
+        glColor4f(0.42f, 0.36f, 0.90f, 1.0f);
+        glBegin(GL_QUADS);
+        glVertex2i(boxX, boxY);
+        glVertex2i(boxX + boxW, boxY);
+        glVertex2i(boxX + boxW, boxY + 2);
+        glVertex2i(boxX, boxY + 2);
+        glEnd();
+
         // Categories
-        int itemY = boxY + 2;
+        int itemY = boxY + 4;
         for (size_t i = 0; i < categories_.size(); i++) {
             bool selected = (int)i == sel_;
             if (selected) {
-                glColor4f(0.3f, 0.3f, 0.8f, 0.5f);
+                glColor4f(0.0f, 0.80f, 0.78f, 0.35f);
                 glBegin(GL_QUADS);
-                glVertex2i(boxX, itemY);
-                glVertex2i(boxX + boxW, itemY);
-                glVertex2i(boxX + boxW, itemY + 12);
-                glVertex2i(boxX, itemY + 12);
+                glVertex2i(boxX + 2, itemY);
+                glVertex2i(boxX + boxW - 2, itemY);
+                glVertex2i(boxX + boxW - 2, itemY + 13);
+                glVertex2i(boxX + 2, itemY + 13);
                 glEnd();
             }
 
+            glEnable(GL_TEXTURE_2D);
             jstring text = env->NewStringUTF(categories_[i].c_str());
             if (text && drawString) {
                 env->CallIntMethod(fontRenderer, drawString, text,
-                    boxX + 5, itemY + 2,
-                    selected ? 0xFFFF55 : 0xFFFFFF);
+                    boxX + 6, itemY + 2,
+                    selected ? 0x00CEC9 : 0xF1F2F6);
                 if (env->ExceptionCheck()) env->ExceptionClear();
                 env->DeleteLocalRef(text);
             }
+            glDisable(GL_TEXTURE_2D);
 
-            itemY += 12;
+            itemY += 14;
         }
 
         // Modules sub-list
@@ -81,12 +93,12 @@ public:
                 }
             }
 
-            int subW = 120;
-            int subH = 12 * (int)catMods.size() + 4;
-            int subX = boxX + boxW + 2;
+            int subW = 125;
+            int subH = 14 * (int)catMods.size() + 6;
+            int subX = boxX + boxW + 4;
             int subY = boxY;
 
-            glColor4f(0.0f, 0.0f, 0.0f, 0.6f);
+            glColor4f(0.08f, 0.08f, 0.11f, 0.92f);
             glBegin(GL_QUADS);
             glVertex2i(subX, subY);
             glVertex2i(subX + subW, subY);
@@ -94,33 +106,43 @@ public:
             glVertex2i(subX, subY + subH);
             glEnd();
 
-            int modY = subY + 2;
+            // Accent bar
+            glColor4f(0.0f, 0.80f, 0.78f, 1.0f);
+            glBegin(GL_QUADS);
+            glVertex2i(subX, subY);
+            glVertex2i(subX + subW, subY);
+            glVertex2i(subX + subW, subY + 2);
+            glVertex2i(subX, subY + 2);
+            glEnd();
+
+            int modY = subY + 4;
             for (size_t i = 0; i < catMods.size(); i++) {
                 bool selected = (int)i == subSel_;
                 if (selected) {
-                    glColor4f(0.3f, 0.3f, 0.8f, 0.5f);
+                    glColor4f(0.42f, 0.36f, 0.90f, 0.35f);
                     glBegin(GL_QUADS);
-                    glVertex2i(subX, modY);
-                    glVertex2i(subX + subW, modY);
-                    glVertex2i(subX + subW, modY + 12);
-                    glVertex2i(subX, modY + 12);
+                    glVertex2i(subX + 2, modY);
+                    glVertex2i(subX + subW - 2, modY);
+                    glVertex2i(subX + subW - 2, modY + 13);
+                    glVertex2i(subX + 2, modY + 13);
                     glEnd();
                 }
 
+                glEnable(GL_TEXTURE_2D);
                 jstring text = env->NewStringUTF(catMods[i]->GetDisplayName().c_str());
                 if (text && drawString) {
                     env->CallIntMethod(fontRenderer, drawString, text,
-                        subX + 5, modY + 2,
-                        catMods[i]->IsEnabled() ? 0x55FF55 : 0xFF5555);
+                        subX + 6, modY + 2,
+                        catMods[i]->IsEnabled() ? 0x00CEC9 : (selected ? 0xFFFFFF : 0x8C92AC));
                     if (env->ExceptionCheck()) env->ExceptionClear();
                     env->DeleteLocalRef(text);
                 }
-                modY += 12;
+                glDisable(GL_TEXTURE_2D);
+                modY += 14;
             }
         }
 
         glPopAttrib();
-        renderer->RestoreProjection();
     }
 
     void OnKeyPress(int key) {
@@ -145,7 +167,10 @@ public:
                 }
             }
             if (subSel_ >= 0 && subSel_ < (int)catMods.size()) {
-                catMods[subSel_]->Toggle(nullptr);
+                JNIEnv* env = nullptr;
+                if (g_vm && g_vm->GetEnv((void**)&env, JNI_VERSION_1_8) == JNI_OK && env) {
+                    catMods[subSel_]->Toggle(env);
+                }
             }
         }
     }
