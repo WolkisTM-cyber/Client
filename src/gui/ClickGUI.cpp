@@ -265,7 +265,7 @@ void ClickGUI::DrawPanel(JNIEnv* env, jobject fontRenderer, jmethodID drawString
         // Draw Expanded Settings Sub-Tree Nodes
         if (panel.expandedMod == mod) {
             auto& settings = mod->GetSettings();
-            for (auto* setting : settings) {
+            for (auto& setting : settings) {
                 bool hoverSet = (mouseX >= panel.x + 10 && mouseX <= panel.x + panel.w - 4 &&
                                  mouseY >= y && mouseY < y + 16);
 
@@ -273,22 +273,22 @@ void ClickGUI::DrawPanel(JNIEnv* env, jobject fontRenderer, jmethodID drawString
                 // Sub-tree branch line
                 DrawRect(panel.x + 10, y + 2, 2, 12, 0.35f, 0.35f, 0.45f, 0.6f);
 
-                if (setting->IsBool()) {
+                if (setting.IsBool()) {
                     if (hoverSet && clicked) {
-                        setting->SetBool(!setting->GetBool());
+                        setting.SetBool(!setting.GetBool());
                     }
                     glEnable(GL_TEXTURE_2D);
-                    std::string setStr = "  " + setting->GetName() + ": " + (setting->GetBool() ? "ON" : "OFF");
+                    std::string setStr = "  " + setting.GetName() + ": " + (setting.GetBool() ? "ON" : "OFF");
                     jstring jSetStr = env->NewStringUTF(setStr.c_str());
                     if (jSetStr && drawString) {
-                        env->CallIntMethod(fontRenderer, drawString, jSetStr, panel.x + 14, y + 3, setting->GetBool() ? 0x55FF55 : 0xAAAAAA);
+                        env->CallIntMethod(fontRenderer, drawString, jSetStr, panel.x + 14, y + 3, setting.GetBool() ? 0x55FF55 : 0xAAAAAA);
                         if (env->ExceptionCheck()) env->ExceptionClear();
                         env->DeleteLocalRef(jSetStr);
                     }
-                } else if (setting->IsNumber()) {
-                    float val = setting->GetNumber();
-                    float minV = setting->GetMin();
-                    float maxV = setting->GetMax();
+                } else if (setting.IsNumber()) {
+                    float val = setting.GetNumber();
+                    float minV = setting.GetMin();
+                    float maxV = setting.GetMax();
                     float pct = (val - minV) / (maxV - minV > 0.0001f ? maxV - minV : 1.0f);
                     pct = (std::max)(0.0f, (std::min)(1.0f, pct));
 
@@ -298,7 +298,7 @@ void ClickGUI::DrawPanel(JNIEnv* env, jobject fontRenderer, jmethodID drawString
                     if (hoverSet && (GetAsyncKeyState(VK_LBUTTON) & 0x8000)) {
                         float newPct = (float)(mouseX - sliderX) / (float)sliderW;
                         newPct = (std::max)(0.0f, (std::min)(1.0f, newPct));
-                        setting->SetNumber(minV + newPct * (maxV - minV));
+                        setting.SetNumber(minV + newPct * (maxV - minV));
                     }
 
                     DrawRect(sliderX, y + 12, sliderW, 3, 0.2f, 0.2f, 0.25f, 0.9f);
@@ -306,7 +306,7 @@ void ClickGUI::DrawPanel(JNIEnv* env, jobject fontRenderer, jmethodID drawString
 
                     glEnable(GL_TEXTURE_2D);
                     char sbuf[64];
-                    snprintf(sbuf, sizeof(sbuf), "  %s: %.1f", setting->GetName().c_str(), setting->GetNumber());
+                    snprintf(sbuf, sizeof(sbuf), "  %s: %.1f", setting.GetName().c_str(), setting.GetNumber());
                     jstring jSetStr = env->NewStringUTF(sbuf);
                     if (jSetStr && drawString) {
                         env->CallIntMethod(fontRenderer, drawString, jSetStr, panel.x + 14, y + 2, 0xCCCCCC);

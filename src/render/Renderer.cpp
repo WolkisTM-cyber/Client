@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "../LogSystem.h"
 #include "../modules/ModuleManager.h"
 #include "../modules/JNIHelper.h"
 #include "../gui/ClickGUI.h"
@@ -54,16 +55,14 @@ static BOOL WINAPI wglSwapBuffers_hook(HDC hdc) {
         return ((wglSwapBuffers_t)(void*)g_trampoline)(hdc);
     }
 
-    __try {
+    SEH_TRY {
         if (g_vm && g_moduleManager) {
             JNIEnv* env = nullptr;
             if (g_vm->GetEnv((void**)&env, JNI_VERSION_1_8) == JNI_OK && env) {
                 Renderer::Get().OnSwapBuffers(hdc);
             }
         }
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        LogSystem::Get().CrashLog("wglSwapBuffers_hook SEH caught rendering exception.");
-    }
+    } SEH_EXCEPT("wglSwapBuffers_hook SEH caught rendering exception.")
 
     return ((wglSwapBuffers_t)(void*)g_trampoline)(hdc);
 }

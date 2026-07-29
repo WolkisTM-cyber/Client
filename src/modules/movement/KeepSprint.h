@@ -1,6 +1,7 @@
 #pragma once
 #include "../Module.h"
 #include "../JNIHelper.h"
+#include <cmath>
 
 class KeepSprint : public Module {
 public:

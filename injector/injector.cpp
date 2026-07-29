@@ -26,7 +26,11 @@ DWORD FindProcess(const wchar_t* name) {
 }
 
 bool Inject(DWORD pid, const wchar_t* dllPath) {
-    HANDLE process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+    DWORD dwAccess = PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ;
+    HANDLE process = OpenProcess(dwAccess, FALSE, pid);
+    if (!process) {
+        process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+    }
     if (!process) {
         std::wcerr << L"OpenProcess failed: " << GetLastError() << std::endl;
         return false;

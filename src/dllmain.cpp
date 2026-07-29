@@ -204,13 +204,13 @@ void SaveConfig() {
 }
 
 DWORD WINAPI TickThreadProc(LPVOID) {
-    __try {
+    SEH_TRY {
         while (g_running.load()) {
             if (g_vm && g_moduleManager) {
                 JNIEnv* env = nullptr;
                 jint getEnvErr = g_vm->GetEnv((void**)&env, JNI_VERSION_1_8);
                 if (getEnvErr == JNI_OK && env) {
-                    __try {
+                    SEH_TRY {
                         g_moduleManager->OnTick(env);
 
                         // Check keybinds
@@ -250,21 +250,17 @@ DWORD WINAPI TickThreadProc(LPVOID) {
                                 g_tabGUI->OnKeyPress(VK_RETURN);
                             }
                         }
-                    } __except (EXCEPTION_EXECUTE_HANDLER) {
-                        LogSystem::Get().CrashLog("TickThreadProc iteration exception caught cleanly.");
-                    }
+                    } SEH_EXCEPT("TickThreadProc iteration exception caught cleanly.")
                 }
             }
             Sleep(30);
         }
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        LogSystem::Get().CrashLog("TickThreadProc fatal exception caught cleanly.");
-    }
+    } SEH_EXCEPT("TickThreadProc fatal exception caught cleanly.")
     return 0;
 }
 
 DWORD WINAPI InitThreadProc(LPVOID) {
-    __try {
+    SEH_TRY {
         Sleep(1500);
 
         typedef jint(JNICALL* JNI_GetCreatedJavaVMs_t)(JavaVM**, jsize, jsize*);
@@ -281,7 +277,7 @@ DWORD WINAPI InitThreadProc(LPVOID) {
         JNIEnv* env = nullptr;
         jint getEnvErr = g_vm->GetEnv((void**)&env, JNI_VERSION_1_8);
         if (getEnvErr != JNI_OK || !env) {
-            JavaVMAttachArgs args = { JNI_VERSION_1_8, "ClientInit", nullptr };
+            JavaVMAttachArgs args = { JNI_VERSION_1_8, (char*)"ClientInit", nullptr };
             if (g_vm->AttachCurrentThread((void**)&env, &args) != JNI_OK) return 0;
         }
 
@@ -305,9 +301,7 @@ DWORD WINAPI InitThreadProc(LPVOID) {
         MessageBeep(MB_OK); // Audible beep signal when Client is fully initialized
 
         if (getEnvErr == JNI_EDETACHED) g_vm->DetachCurrentThread();
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        LogSystem::Get().CrashLog("InitThreadProc exception caught cleanly during startup.");
-    }
+    } SEH_EXCEPT("InitThreadProc exception caught cleanly during startup.")
     return 0;
 }
 

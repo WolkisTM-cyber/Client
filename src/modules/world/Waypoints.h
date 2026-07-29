@@ -7,6 +7,7 @@
 #include <vector>
 #include <fstream>
 #include <string>
+#include <cmath>
 
 struct Waypoint {
     std::string name;

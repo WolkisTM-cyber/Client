@@ -1,5 +1,6 @@
 #include "PacketUtil.h"
 #include <cstdarg>
+#include <cstring>
 
 jclass PacketUtil::GetPacketClass(JNIEnv* env, const char* name) {
     std::string full = "net/minecraft/network/play/client/";

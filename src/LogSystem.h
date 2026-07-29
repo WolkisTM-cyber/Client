@@ -7,6 +7,16 @@
 #include <windows.h>
 #include <shlobj.h>
 
+class LogSystem;
+
+#if defined(_MSC_VER)
+  #define SEH_TRY __try
+  #define SEH_EXCEPT(ctx) __except (EXCEPTION_EXECUTE_HANDLER) { LogSystem::Get().CrashLog(ctx); }
+#else
+  #define SEH_TRY try
+  #define SEH_EXCEPT(ctx) catch (...) { LogSystem::Get().CrashLog(ctx); }
+#endif
+
 class LogSystem {
 public:
     static LogSystem& Get() {
